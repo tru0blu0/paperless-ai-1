@@ -45,12 +45,19 @@ class FormManager {
         this.toggleProviderSettings();
         this.toggleTagsInput();
         this.handleDisableAutomaticProcessing();
+        this.initializeReasoningModels();
         
         this.aiProvider.addEventListener('change', () => this.toggleProviderSettings());
         this.showTags.addEventListener('change', () => this.toggleTagsInput());
         this.aiProcessedTag.addEventListener('change', () => this.toggleAiTagInput());
         this.usePromptTags.addEventListener('change', () => this.togglePromptTagsInput());
         this.disableAutomaticProcessing.addEventListener('change', () => this.handleDisableAutomaticProcessing());
+        
+        // Add event listener for reasoning models toggle
+        const enableReasoning = document.getElementById('enableReasoning');
+        if (enableReasoning) {
+            enableReasoning.addEventListener('change', () => this.toggleReasoningModelsInput());
+        }
         
         this.initializePasswordToggles();
 
@@ -60,6 +67,35 @@ class FormManager {
         
         this.toggleAiTagInput();
         this.togglePromptTagsInput();
+    }
+    
+    initializeReasoningModels() {
+        // Show/hide reasoning models section based on AI provider
+        const reasoningSection = document.getElementById('reasoningModelsSection');
+        if (reasoningSection) {
+            // Only show for Ollama provider
+            if (this.aiProvider.value === 'ollama') {
+                reasoningSection.classList.remove('hidden');
+            } else {
+                reasoningSection.classList.add('hidden');
+            }
+        }
+        
+        // Initialize reasoning models input visibility
+        this.toggleReasoningModelsInput();
+    }
+    
+    toggleReasoningModelsInput() {
+        const enableReasoning = document.getElementById('enableReasoning');
+        const reasoningModelsSection = document.getElementById('reasoningModelsInputSection');
+        
+        if (enableReasoning && reasoningModelsSection) {
+            if (enableReasoning.value === 'yes') {
+                reasoningModelsSection.classList.remove('hidden');
+            } else {
+                reasoningModelsSection.classList.add('hidden');
+            }
+        }
     }
 
     handleDisableAutomaticProcessing() {
@@ -82,6 +118,7 @@ class FormManager {
         const openaiSettings = document.getElementById('openaiSettings');
         const ollamaSettings = document.getElementById('ollamaSettings');
         const customSettings = document.getElementById('customSettings');
+        const reasoningSection = document.getElementById('reasoningModelsSection');
         
         // Get all provider-specific fields
         const openaiKey = document.getElementById('openaiKey');
@@ -95,6 +132,11 @@ class FormManager {
         openaiSettings.classList.add('hidden');
         ollamaSettings.classList.add('hidden');
         customSettings.classList.add('hidden');
+        
+        // Hide reasoning section by default
+        if (reasoningSection) {
+            reasoningSection.classList.add('hidden');
+        }
         
         // Reset all required fields
         openaiKey.required = false;
@@ -114,6 +156,10 @@ class FormManager {
                 ollamaSettings.classList.remove('hidden');
                 ollamaUrl.required = true;
                 ollamaModel.required = true;
+                // Show reasoning section only for Ollama
+                if (reasoningSection) {
+                    reasoningSection.classList.remove('hidden');
+                }
                 break;
             case 'custom':
                 customSettings.classList.remove('hidden');

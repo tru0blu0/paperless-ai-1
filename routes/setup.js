@@ -1353,7 +1353,9 @@ router.post('/setup', express.json(), async (req, res) => {
       CUSTOM_FIELDS: processedCustomFields.length > 0 
         ? JSON.stringify({ custom_fields: processedCustomFields }) 
         : '{"custom_fields":[]}',
-      DISABLE_AUTOMATIC_PROCESSING: disableAutomaticProcessing ? 'yes' : 'no'
+      DISABLE_AUTOMATIC_PROCESSING: disableAutomaticProcessing ? 'yes' : 'no',
+      ENABLE_REASONING: req.body.enableReasoning ? 'yes' : 'no',
+      REASONING_MODELS: req.body.reasoningModels || 'deepseek-r1,llama3.2:reasoning'
     };
     
     // Validate AI provider config
@@ -1573,6 +1575,10 @@ router.post('/settings', express.json(), async (req, res) => {
     if (customBaseUrl) updatedConfig.CUSTOM_BASE_URL = customBaseUrl;
     if (customModel) updatedConfig.CUSTOM_MODEL = customModel;
     if (disableAutomaticProcessing) updatedConfig.DISABLE_AUTOMATIC_PROCESSING = disableAutomaticProcessing;
+    
+    // Handle reasoning models settings
+    updatedConfig.ENABLE_REASONING = req.body.enableReasoning === 'yes' ? 'yes' : 'no';
+    if (req.body.reasoningModels) updatedConfig.REASONING_MODELS = req.body.reasoningModels;
 
     // Update custom fields
     if (processedCustomFields.length > 0 || customFields) {

@@ -41,7 +41,9 @@ module.exports = {
   },
   ollama: {
     apiUrl: process.env.OLLAMA_API_URL || 'http://localhost:11434',
-    model: process.env.OLLAMA_MODEL || 'llama3.2'
+    model: process.env.OLLAMA_MODEL || 'llama3.2',
+    enableReasoning: process.env.ENABLE_REASONING === 'yes' || false,
+    reasoningModels: (process.env.REASONING_MODELS || 'deepseek-r1,llama3.2:reasoning').split(',')
   },
   custom: {
     apiUrl: process.env.CUSTOM_BASE_URL || '',

@@ -65,6 +65,12 @@ class FormManager {
         this.aiProcessedTag.addEventListener('change', () => this.toggleAiTagInput());
         this.usePromptTags.addEventListener('change', () => this.togglePromptTagsInput());
         
+        // Add event listener for reasoning models toggle
+        const enableReasoning = document.getElementById('enableReasoning');
+        if (enableReasoning) {
+            enableReasoning.addEventListener('change', () => this.toggleReasoningModelsInput());
+        }
+        
         // Initialize password toggles
         this.initializePasswordToggles();
 
@@ -76,6 +82,20 @@ class FormManager {
         // Initialize new sections
         this.toggleAiTagInput();
         this.togglePromptTagsInput();
+        this.toggleReasoningModelsInput();
+    }
+    
+    toggleReasoningModelsInput() {
+        const enableReasoning = document.getElementById('enableReasoning');
+        const reasoningModelsSection = document.getElementById('reasoningModelsInputSection');
+        
+        if (enableReasoning && reasoningModelsSection) {
+            if (enableReasoning.value === 'yes') {
+                reasoningModelsSection.classList.remove('hidden');
+            } else {
+                reasoningModelsSection.classList.add('hidden');
+            }
+        }
     }
 
     toggleProviderSettings() {

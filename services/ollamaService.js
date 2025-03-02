@@ -46,6 +46,50 @@ const documentAnalysisSchema = {
     required: ["title", "correspondent", "tags", "document_type", "document_date", "language"]
 };
 
+// Schema for reasoning models that includes reasoning steps
+const reasoningDocumentAnalysisSchema = {
+    type: "object",
+    properties: {
+        reasoning: {
+            type: "string",
+            description: "Step-by-step reasoning process for analyzing the document"
+        },
+        title: {
+            type: "string",
+            description: "The title of the document"
+        },
+        correspondent: {
+            type: "string",
+            description: "The correspondent (sender) of the document"
+        },
+        tags: {
+            type: "array",
+            items: {
+                type: "string"
+            },
+            description: "List of tags associated with the document"
+        },
+        document_type: {
+            type: "string",
+            description: "Type of document (e.g., Invoice, Contract, etc.)"
+        },
+        document_date: {
+            type: "string",
+            description: "Date of the document in YYYY-MM-DD format"
+        },
+        language: {
+            type: "string",
+            description: "Language of the document (e.g., en, de, es)"
+        },
+        custom_fields: {
+            type: "object",
+            additionalProperties: true,
+            description: "Custom fields with their values"
+        }
+    },
+    required: ["reasoning", "title", "correspondent", "tags", "document_type", "document_date", "language"]
+};
+
 class OllamaService {
     constructor() {
         this.apiUrl = config.ollama.apiUrl;
@@ -53,6 +97,12 @@ class OllamaService {
         this.client = axios.create({
             timeout: 1800000 // 30 minutes timeout
         });
+        this.enableReasoning = config.ollama.enableReasoning;
+        this.reasoningModels = config.ollama.reasoningModels;
+    }
+
+    isReasoningModel(model) {
+        return this.enableReasoning && this.reasoningModels.includes(model);
     }
 
     async analyzeDocument(content, existingTags = [], existingCorrespondentList = [], id, customPrompt = null) {
@@ -147,7 +197,43 @@ class OllamaService {
             const expectedResponseTokens = 1024;
             const promptTokenCount = calculatePromptTokenCount(prompt);
             
-            let systemPromptFinal = `
+            let systemPromptFinal;
+            let analysisSchema;
+            
+            // Check if we're using a reasoning model
+            const useReasoningModel = this.isReasoningModel(this.model);
+            
+            if (useReasoningModel) {
+                // System prompt for reasoning models
+                systemPromptFinal = `
+                    You are a document analyzer with reasoning capabilities. Your task is to analyze documents and extract relevant information.
+                    YOU MUSTNOT: Ask for additional information or clarification, or ask questions about the document, or ask for additional context.
+                    YOU MUSTNOT: Return a response without the desired JSON format.
+                    YOU MUST: First provide step-by-step reasoning about the document, then return the result as a JSON object.
+                    The Tags, Title and Document_Type MUST be in the language that is used in the document.
+                    
+                    IMPORTANT: The custom_fields are optional and can be left out if not needed, only try to fill out the values if you find a matching information in the document.
+                    Do not change the value of field_name, only fill out the values. If the field is about money only add the number without currency and always use a . for decimal places.
+                    
+                    Your response should follow this format:
+                    {
+                        "reasoning": "Your step-by-step reasoning process here...",
+                        "title": "xxxxx",
+                        "correspondent": "xxxxxxxx",
+                        "tags": ["Tag1", "Tag2", "Tag3", "Tag4"],
+                        "document_type": "Invoice/Contract/...",
+                        "document_date": "YYYY-MM-DD",
+                        "language": "en/de/es/...",
+                        %CUSTOMFIELDS%
+                    }
+                    ALWAYS USE THE INFORMATION TO FILL OUT THE JSON OBJECT. DO NOT ASK BACK QUESTIONS.
+                `;
+                
+                systemPromptFinal = systemPromptFinal.replace('%CUSTOMFIELDS%', customFieldsStr);
+                analysisSchema = { ...reasoningDocumentAnalysisSchema };
+            } else {
+                // Standard system prompt for non-reasoning models
+                systemPromptFinal = `
                     You are a document analyzer. Your task is to analyze documents and extract relevant information. You do not ask back questions. 
                     YOU MUSTNOT: Ask for additional information or clarification, or ask questions about the document, or ask for additional context.
                     YOU MUSTNOT: Return a response without the desired JSON format.
@@ -164,13 +250,13 @@ class OllamaService {
                         %CUSTOMFIELDS%
                     }
                     ALWAYS USE THE INFORMATION TO FILL OUT THE JSON OBJECT. DO NOT ASK BACK QUESTIONS.
-                    `;
-            
-            systemPromptFinal = systemPromptFinal.replace('%CUSTOMFIELDS%', customFieldsStr);
+                `;
+                
+                systemPromptFinal = systemPromptFinal.replace('%CUSTOMFIELDS%', customFieldsStr);
+                analysisSchema = { ...documentAnalysisSchema };
+            }
 
             const numCtx = calculateNumCtx(promptTokenCount, expectedResponseTokens);
-            // Create a modified schema with custom fields if needed
-            let analysisSchema = { ...documentAnalysisSchema };
             
             const response = await this.client.post(`${this.apiUrl}/api/generate`, {
                 model: this.model,
@@ -186,69 +272,105 @@ class OllamaService {
                     num_predict: 256,
                     num_ctx: numCtx 
                 }
-                //   options: {
-                    //     temperature: 0.3,        // Moderately low for balance between consistency and creativity
-                    //     top_p: 0.7,             // More reasonable value to allow sufficient token diversity
-                    //     repeat_penalty: 1.1,     // Return to original value as 1.2 might be too restrictive
-                    //     top_k: 40,              // Increased from 10 to allow more token options
-                    //     num_predict: 512,        // Reduced from 1024 to a more stable value
-                    //     num_ctx: 2048           // Reduced context window for more stable processing
-                    // }
-                });
+            });
                 
-                if (!response.data) {
-                    throw new Error('Invalid response from Ollama API');
-                }
-                
-                let parsedResponse;
-                // Check if we got a structured response or need to parse from text
-                if (response.data.response && typeof response.data.response === 'object') {
-                    // We got a structured response directly
-                    console.log('Using structured output response');
-                    parsedResponse = {
-                        tags: Array.isArray(response.data.response.tags) ? response.data.response.tags : [],
-                        correspondent: response.data.response.correspondent || null,
-                        title: response.data.response.title || null,
-                        document_date: response.data.response.document_date || null,
-                        document_type: response.data.response.document_type || null,
-                        language: response.data.response.language || null,
-                        custom_fields: response.data.response.custom_fields || null
-                    };
-                } else if (response.data.response) {
-                    // Fall back to parsing from text response
-                    console.log('Falling back to text response parsing');
-                    parsedResponse = this._parseResponse(response.data.response);
-                } else {
-                    throw new Error('No response data from Ollama API');
-                }
-                
-                //console.log('Ollama response:', parsedResponse);
-                if(parsedResponse.tags.length === 0 && parsedResponse.correspondent === null) {
-                    console.warn('No tags or correspondent found in response from Ollama for Document.\nPlease review your prompt or switch to OpenAI for better results.',);
-                }
-                
-                await this.writePromptToFile(prompt + "\n\n" + JSON.stringify(parsedResponse));
-                // Match the OpenAI service response structure
-                return {
-                    document: parsedResponse,
-                    metrics: {
-                        promptTokens: 0,  // Ollama doesn't provide token metrics
-                        completionTokens: 0,
-                        totalTokens: 0
-                    },
-                    truncated: false
-                };
-                
-            } catch (error) {
-                console.error('Error analyzing document with Ollama:', error);
-                return {
-                    document: { tags: [], correspondent: null },
-                    metrics: null,
-                    error: error.message
-                };
+            if (!response.data) {
+                throw new Error('Invalid response from Ollama API');
             }
+            
+            let parsedResponse;
+            let reasoningText = null;
+            
+            // Check if we got a structured response or need to parse from text
+            if (response.data.response && typeof response.data.response === 'object') {
+                // We got a structured response directly
+                console.log('Using structured output response');
+                
+                // Extract reasoning if present (for reasoning models)
+                if (useReasoningModel && response.data.response.reasoning) {
+                    reasoningText = response.data.response.reasoning;
+                    console.log('[DEBUG] Reasoning process captured');
+                }
+                
+                parsedResponse = {
+                    tags: Array.isArray(response.data.response.tags) ? response.data.response.tags : [],
+                    correspondent: response.data.response.correspondent || null,
+                    title: response.data.response.title || null,
+                    document_date: response.data.response.document_date || null,
+                    document_type: response.data.response.document_type || null,
+                    language: response.data.response.language || null,
+                    custom_fields: response.data.response.custom_fields || null
+                };
+            } else if (response.data.response) {
+                // Fall back to parsing from text response
+                console.log('Falling back to text response parsing');
+                
+                // For reasoning models, try to extract reasoning before JSON
+                if (useReasoningModel) {
+                    const responseText = response.data.response;
+                    const jsonStartIndex = responseText.indexOf('{');
+                    
+                    if (jsonStartIndex > 0) {
+                        reasoningText = responseText.substring(0, jsonStartIndex).trim();
+                        console.log('[DEBUG] Extracted reasoning from text response');
+                    }
+                }
+                
+                parsedResponse = this._parseResponse(response.data.response);
+            } else {
+                throw new Error('No response data from Ollama API');
+            }
+            
+            if(parsedResponse.tags.length === 0 && parsedResponse.correspondent === null) {
+                console.warn('No tags or correspondent found in response from Ollama for Document.\nPlease review your prompt or switch to OpenAI for better results.');
+            }
+            
+            await this.writePromptToFile(prompt + "\n\n" + JSON.stringify(parsedResponse));
+            await this.writeDebugFileForResponse(JSON.stringify(response.data.response));
+            
+            // Match the OpenAI service response structure, including reasoning if available
+            return {
+                document: parsedResponse,
+                metrics: {
+                    promptTokens: 0,  // Ollama doesn't provide token metrics
+                    completionTokens: 0,
+                    totalTokens: 0
+                },
+                truncated: false,
+                reasoning: reasoningText  // Include reasoning if available
+            };
+                
+        } catch (error) {
+            console.error('Error analyzing document with Ollama:', error);
+            return {
+                document: { tags: [], correspondent: null },
+                metrics: null,
+                error: error.message
+            };
+        }
     }
     
+    async writeDebugFileForResponse(response) {
+        const filePath = './logs/debug_response.txt';
+        const maxSize = 10 * 1024 * 1024;
+      
+        try {
+          const stats = await fs.stat(filePath);
+          if (stats.size > maxSize) {
+            await fs.unlink(filePath); // Delete the file if is biger 10MB
+          }
+        } catch (error) {
+          if (error.code !== 'ENOENT') {
+            console.warn('[WARNING] Error checking file size:', error);
+          }
+        }
+      
+        try {
+          await fs.appendFile(filePath, '================================================================================' + response + '\n\n' + '================================================================================\n\n');
+        } catch (error) {
+          console.error('[ERROR] Error writing to file:', error);
+        }
+      }
     
     async writePromptToFile(systemPrompt) {
         const filePath = './logs/prompt.txt';
@@ -274,7 +396,6 @@ class OllamaService {
 
     async analyzePlayground(content, prompt) {
         try {
-
             const getAvailableMemory = async () => {
                 const totalMemory = os.totalmem();
                 const freeMemory = os.freemem();
@@ -305,38 +426,83 @@ class OllamaService {
             const promptTokenCount = calculatePromptTokenCount(prompt);
             
             const numCtx = calculateNumCtx(promptTokenCount, expectedResponseTokens);
-          
-          // Create a simplified schema for playground analysis
-          const playgroundSchema = {
-              type: "object",
-              properties: {
-                  title: { type: "string" },
-                  correspondent: { type: "string" },
-                  tags: { 
-                      type: "array", 
-                      items: { type: "string" } 
-                  },
-                  document_type: { type: "string" },
-                  document_date: { type: "string" },
-                  language: { type: "string" }
-              },
-              required: ["title", "correspondent", "tags", "document_type", "document_date", "language"]
-          };
-          
-          const systemPrompt = `
-            You are a document analyzer. Your task is to analyze documents and extract relevant information. You do not ask back questions. 
-            YOU MUSTNOT: Ask for additional information or clarification, or ask questions about the document, or ask for additional context.
-            YOU MUSTNOT: Return a response without the desired JSON format.
-            YOU MUST: Analyze the document content and extract the following information into this structured JSON format and only this format!:         {
-            "title": "xxxxx",
-            "correspondent": "xxxxxxxx",
-            "tags": ["Tag1", "Tag2", "Tag3", "Tag4"],
-            "document_type": "Invoice/Contract/...",
-            "document_date": "YYYY-MM-DD",
-            "language": "en/de/es/..."
+            
+            // Check if we're using a reasoning model
+            const useReasoningModel = this.isReasoningModel(this.model);
+            
+            let playgroundSchema;
+            let systemPrompt;
+            
+            if (useReasoningModel) {
+                // Schema for reasoning models in playground
+                playgroundSchema = {
+                    type: "object",
+                    properties: {
+                        reasoning: { type: "string" },
+                        title: { type: "string" },
+                        correspondent: { type: "string" },
+                        tags: { 
+                            type: "array", 
+                            items: { type: "string" } 
+                        },
+                        document_type: { type: "string" },
+                        document_date: { type: "string" },
+                        language: { type: "string" }
+                    },
+                    required: ["reasoning", "title", "correspondent", "tags", "document_type", "document_date", "language"]
+                };
+                
+                systemPrompt = `
+                    You are a document analyzer with reasoning capabilities. Your task is to analyze documents and extract relevant information.
+                    YOU MUSTNOT: Ask for additional information or clarification, or ask questions about the document, or ask for additional context.
+                    YOU MUSTNOT: Return a response without the desired JSON format.
+                    YOU MUST: First provide step-by-step reasoning about the document, then return the result as a JSON object.
+                    
+                    Your response should follow this format:
+                    {
+                        "reasoning": "Your step-by-step reasoning process here...",
+                        "title": "xxxxx",
+                        "correspondent": "xxxxxxxx",
+                        "tags": ["Tag1", "Tag2", "Tag3", "Tag4"],
+                        "document_type": "Invoice/Contract/...",
+                        "document_date": "YYYY-MM-DD",
+                        "language": "en/de/es/..."
+                    }
+                    ALWAYS USE THE INFORMATION TO FILL OUT THE JSON OBJECT. DO NOT ASK BACK QUESTIONS.
+                `;
+            } else {
+                // Standard schema for non-reasoning models
+                playgroundSchema = {
+                    type: "object",
+                    properties: {
+                        title: { type: "string" },
+                        correspondent: { type: "string" },
+                        tags: { 
+                            type: "array", 
+                            items: { type: "string" } 
+                        },
+                        document_type: { type: "string" },
+                        document_date: { type: "string" },
+                        language: { type: "string" }
+                    },
+                    required: ["title", "correspondent", "tags", "document_type", "document_date", "language"]
+                };
+                
+                systemPrompt = `
+                    You are a document analyzer. Your task is to analyze documents and extract relevant information. You do not ask back questions. 
+                    YOU MUSTNOT: Ask for additional information or clarification, or ask questions about the document, or ask for additional context.
+                    YOU MUSTNOT: Return a response without the desired JSON format.
+                    YOU MUST: Analyze the document content and extract the following information into this structured JSON format and only this format!:         {
+                    "title": "xxxxx",
+                    "correspondent": "xxxxxxxx",
+                    "tags": ["Tag1", "Tag2", "Tag3", "Tag4"],
+                    "document_type": "Invoice/Contract/...",
+                    "document_date": "YYYY-MM-DD",
+                    "language": "en/de/es/..."
+                    }
+                    ALWAYS USE THE INFORMATION TO FILL OUT THE JSON OBJECT. DO NOT ASK BACK QUESTIONS.
+                `;
             }
-            ALWAYS USE THE INFORMATION TO FILL OUT THE JSON OBJECT. DO NOT ASK BACK QUESTIONS.
-            `;
             
             const response = await this.client.post(`${this.apiUrl}/api/generate`, {
                 model: this.model,
@@ -352,14 +518,6 @@ class OllamaService {
                     num_predict: 256,
                     num_ctx: numCtx
                 }
-                //   options: {
-                //     temperature: 0.3,        // Moderately low for balance between consistency and creativity
-                //     top_p: 0.7,             // More reasonable value to allow sufficient token diversity
-                //     repeat_penalty: 1.1,     // Return to original value as 1.2 might be too restrictive
-                //     top_k: 40,              // Increased from 10 to allow more token options
-                //     num_predict: 512,        // Reduced from 1024 to a more stable value
-                //     num_ctx: 2048           // Reduced context window for more stable processing
-                // }
             });
 
             if (!response.data) {
@@ -367,10 +525,19 @@ class OllamaService {
             }
 
             let parsedResponse;
+            let reasoningText = null;
+            
             // Check if we got a structured response or need to parse from text
             if (response.data.response && typeof response.data.response === 'object') {
                 // We got a structured response directly
                 console.log('Using structured output response for playground');
+                
+                // Extract reasoning if present (for reasoning models)
+                if (useReasoningModel && response.data.response.reasoning) {
+                    reasoningText = response.data.response.reasoning;
+                    console.log('[DEBUG] Reasoning process captured in playground');
+                }
+                
                 parsedResponse = {
                     tags: Array.isArray(response.data.response.tags) ? response.data.response.tags : [],
                     correspondent: response.data.response.correspondent || null,
@@ -382,17 +549,28 @@ class OllamaService {
             } else if (response.data.response) {
                 // Fall back to parsing from text response
                 console.log('Falling back to text response parsing for playground');
+                
+                // For reasoning models, try to extract reasoning before JSON
+                if (useReasoningModel) {
+                    const responseText = response.data.response;
+                    const jsonStartIndex = responseText.indexOf('{');
+                    
+                    if (jsonStartIndex > 0) {
+                        reasoningText = responseText.substring(0, jsonStartIndex).trim();
+                        console.log('[DEBUG] Extracted reasoning from text response in playground');
+                    }
+                }
+                
                 parsedResponse = this._parseResponse(response.data.response);
             } else {
                 throw new Error('No response data from Ollama API');
             }
             
-            //console.log('Ollama response:', parsedResponse);
             if(parsedResponse.tags.length === 0 && parsedResponse.correspondent === null) {
-                console.warn('No tags or correspondent found in response from Ollama for Document.\nPlease review your prompt or switch to OpenAI for better results.',);
+                console.warn('No tags or correspondent found in response from Ollama for Document.\nPlease review your prompt or switch to OpenAI for better results.');
             }
 
-            // Match the OpenAI service response structure
+            // Match the OpenAI service response structure, including reasoning if available
             return {
                 document: parsedResponse,
                 metrics: {
@@ -400,7 +578,8 @@ class OllamaService {
                     completionTokens: 0,
                     totalTokens: 0
                 },
-                truncated: false
+                truncated: false,
+                reasoning: reasoningText  // Include reasoning if available
             };
 
         } catch (error) {

@@ -256,6 +256,31 @@
                                                    value="<%= config.OLLAMA_MODEL %>"
                                                    class="modern-input">
                                         </div>
+                                        
+                                        <!-- Reasoning Models Section -->
+                                        <div id="reasoningModelsSection" class="form-group">
+                                            <label for="enableReasoning">Enable reasoning process for supported models</label>
+                                            <select id="enableReasoning" 
+                                                    name="enableReasoning" 
+                                                    class="modern-input">
+                                                <option value="no" <%= config.ENABLE_REASONING === 'no' ? 'selected' : '' %>>No</option>
+                                                <option value="yes" <%= config.ENABLE_REASONING === 'yes' ? 'selected' : '' %>>Yes</option>
+                                            </select>
+                                            <p class="help-text">When enabled, models like DeepSeek-R1 will show their reasoning process</p>
+                                        </div>
+                                        
+                                        <div id="reasoningModelsInputSection" class="<%= config.ENABLE_REASONING === 'yes' ? '' : 'hidden' %>">
+                                            <div class="form-group">
+                                                <label for="reasoningModels">Reasoning-capable Models</label>
+                                                <input type="text" 
+                                                    id="reasoningModels" 
+                                                    name="reasoningModels"
+                                                    value="<%= config.REASONING_MODELS || 'deepseek-r1,llama3.2:reasoning' %>"
+                                                    class="modern-input"
+                                                    placeholder="deepseek-r1,llama3.2:reasoning">
+                                                <p class="help-text">Comma-separated list of models that support reasoning</p>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- Custom Provider Settings -->
