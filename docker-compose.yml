@@ -13,7 +13,7 @@
         - PAPERLESS_AI_PORT=${PAPERLESS_AI_PORT:-3000}
         - RAG_SERVICE_URL=http://localhost:8000
         - RAG_SERVICE_ENABLED=true
-        - OCR_SERVICE_URL=http://ocr-container:8123  # Add this line
+        - OCR_SERVICE_URL=http://ocr-container:8123
       ports:
         - "3000:${PAPERLESS_AI_PORT:-3000}"
       volumes:
