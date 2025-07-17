@@ -50,6 +50,18 @@ class OCRManager {
         this.confirmCancel = document.getElementById('confirmCancel');
         this.confirmProceed = document.getElementById('confirmProceed');
         
+        // Text preview modal elements
+        this.textPreviewModal = document.getElementById('textPreviewModal');
+        this.previewContent = document.getElementById('previewContent');
+        this.toggleMarkdown = document.getElementById('toggleMarkdown');
+        this.toggleView = document.getElementById('toggleView');
+        this.closePreview = document.getElementById('closePreview');
+        this.pdfPanel = document.getElementById('pdfPanel');
+        this.textPanel = document.getElementById('textPanel');
+        this.pdfFrame = document.getElementById('pdfFrame');
+        this.downloadPdf = document.getElementById('downloadPdf');
+        this.copyText = document.getElementById('copyText');
+        
         // Toast container
         this.toastContainer = document.getElementById('toastContainer');
     }
@@ -80,6 +92,18 @@ class OCRManager {
             }
         });
         
+        // Text preview modal listeners
+        this.closePreview.addEventListener('click', () => this.hideTextPreview());
+        this.toggleMarkdown.addEventListener('click', () => this.toggleMarkdownView());
+        this.toggleView.addEventListener('click', () => this.toggleViewMode());
+        this.downloadPdf.addEventListener('click', () => this.downloadDocument());
+        this.copyText.addEventListener('click', () => this.copyTextToClipboard());
+        this.textPreviewModal.addEventListener('click', (e) => {
+            if (e.target === this.textPreviewModal) {
+                this.hideTextPreview();
+            }
+        });
+        
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'a' && !this.isProcessing) {
@@ -89,6 +113,7 @@ class OCRManager {
             }
             if (e.key === 'Escape') {
                 this.hideConfirmModal();
+                this.hideTextPreview();
             }
         });
     }
@@ -217,10 +242,12 @@ class OCRManager {
                 statusClass = 'status-processed';
                 statusIcon = 'fas fa-check-circle text-xs';
                 statusText = 'Processed';
+                console.log('Document', doc.id, 'is processed, will show preview button');
             } else {
                 statusClass = 'status-ready';
                 statusIcon = 'fas fa-circle text-xs';
                 statusText = 'Ready';
+                console.log('Document', doc.id, 'is not processed, no preview button');
             }
             
             row.innerHTML = `
@@ -247,12 +274,20 @@ class OCRManager {
                 </td>
                 <td class="p-3">
                     ${doc.isProcessed ? `
-                        <button class="reset-btn" 
-                                data-doc-id="${doc.id}" 
-                                title="Reset processing status"
-                                ${this.isProcessing ? 'disabled' : ''}>
-                            <i class="fas fa-undo"></i>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button class="preview-btn text-blue-500 hover:text-blue-600 transition-colors" 
+                                    data-doc-id="${doc.id}" 
+                                    title="Preview extracted text"
+                                    ${this.isProcessing ? 'disabled' : ''}>
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="reset-btn" 
+                                    data-doc-id="${doc.id}" 
+                                    title="Reset processing status"
+                                    ${this.isProcessing ? 'disabled' : ''}>
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        </div>
                     ` : ''}
                 </td>
             `;
@@ -278,6 +313,16 @@ class OCRManager {
             button.addEventListener('click', (e) => {
                 const docId = parseInt(e.target.closest('.reset-btn').dataset.docId);
                 this.confirmResetDocument(docId);
+            });
+        });
+        
+        // Add event listeners to preview buttons
+        document.querySelectorAll('.preview-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                console.log('Preview button clicked');
+                const docId = parseInt(e.target.closest('.preview-btn').dataset.docId);
+                console.log('Document ID:', docId);
+                this.showTextPreview(docId);
             });
         });
 
@@ -481,10 +526,32 @@ class OCRManager {
             const status = data.success ? 'completed' : 'error';
             this.updateDocumentStatus(data.documentId, status);
             
+            // Store the extracted text data for preview
+            if (data.success && data.extractedText) {
+                if (!this.extractedTextCache) {
+                    this.extractedTextCache = new Map();
+                }
+                this.extractedTextCache.set(data.documentId, {
+                    documentId: data.documentId,
+                    documentTitle: data.documentTitle,
+                    extractedText: data.extractedText,
+                    markdownText: data.markdownText || data.extractedText,
+                    hasMarkdown: data.hasMarkdown || false,
+                    processingTime: data.processingTime,
+                    textLength: data.textLength
+                });
+                console.log('Stored text data for document', data.documentId, 'in cache');
+            }
+            
             const logType = data.success ? 'success' : 'error';
-            const message = data.success 
-                ? `Document ${data.documentId} completed successfully ${data.textLength ? `(${data.textLength} characters)` : ''}`
-                : `Document ${data.documentId} failed: ${data.error}`;
+            let message;
+            if (data.success) {
+                const textInfo = data.textLength ? `(${data.textLength} characters)` : '';
+                const markdownInfo = data.hasMarkdown ? ' with markdown' : '';
+                message = `Document ${data.documentId} completed successfully ${textInfo}${markdownInfo}`;
+            } else {
+                message = `Document ${data.documentId} failed: ${data.error}`;
+            }
             
             this.addLogEntry(message, logType);
             
@@ -770,6 +837,233 @@ class OCRManager {
         } catch (error) {
             this.showError('Error resetting all processing history: ' + error.message);
         }
+    }
+    
+    // Text Preview Methods
+    async showTextPreview(documentId) {
+        console.log('showTextPreview called with documentId:', documentId);
+        
+        // First check if we have cached data from the event stream
+        if (this.extractedTextCache && this.extractedTextCache.has(documentId)) {
+            console.log('Using cached text data for document', documentId);
+            const cachedData = this.extractedTextCache.get(documentId);
+            this.currentPreviewData = {
+                documentId: documentId,
+                documentTitle: cachedData.documentTitle,
+                structuredText: cachedData.extractedText,
+                markdownText: cachedData.markdownText,
+                hasMarkdown: cachedData.hasMarkdown,
+                showingMarkdown: false,
+                viewMode: 'split' // 'split', 'text-only', 'pdf-only'
+            };
+            
+            console.log('currentPreviewData from cache:', this.currentPreviewData);
+            
+            // Load PDF preview
+            this.loadPdfPreview(documentId);
+            
+            this.updatePreviewContent();
+            this.textPreviewModal.classList.remove('hidden');
+            console.log('Modal should now be visible');
+            return;
+        }
+        
+        // Fall back to API call for documents processed before the current session
+        try {
+            console.log('No cached data, fetching from API...');
+            const response = await fetch(`/api/ocr/processed/${documentId}`);
+            console.log('API response status:', response.status);
+            const data = await response.json();
+            console.log('API response data:', data);
+            
+            if (data.success && data.processing) {
+                this.currentPreviewData = {
+                    documentId: documentId,
+                    documentTitle: data.processing.document_title,
+                    structuredText: data.processing.extracted_text || 'No text available',
+                    markdownText: data.processing.markdown_text || data.processing.extracted_text || 'No text available',
+                    hasMarkdown: !!data.processing.markdown_text,
+                    showingMarkdown: false,
+                    viewMode: 'split' // 'split', 'text-only', 'pdf-only'
+                };
+                
+                console.log('currentPreviewData from API:', this.currentPreviewData);
+                
+                // Load PDF preview
+                this.loadPdfPreview(documentId);
+                
+                this.updatePreviewContent();
+                this.textPreviewModal.classList.remove('hidden');
+                console.log('Modal should now be visible');
+            } else {
+                console.error('API response error:', data);
+                this.showError('Failed to load text preview: ' + (data.error || 'No processing data found'));
+            }
+        } catch (error) {
+            console.error('Error in showTextPreview:', error);
+            this.showError('Error loading text preview: ' + error.message);
+        }
+    }
+    
+    hideTextPreview() {
+        this.textPreviewModal.classList.add('hidden');
+        this.currentPreviewData = null;
+    }
+    
+    toggleMarkdownView() {
+        if (!this.currentPreviewData) return;
+        
+        this.currentPreviewData.showingMarkdown = !this.currentPreviewData.showingMarkdown;
+        this.updatePreviewContent();
+    }
+    
+    updatePreviewContent() {
+        console.log('updatePreviewContent called');
+        if (!this.currentPreviewData) {
+            console.log('No currentPreviewData');
+            return;
+        }
+        
+        const { documentTitle, structuredText, markdownText, hasMarkdown, showingMarkdown, viewMode } = this.currentPreviewData;
+        console.log('Preview data extracted:', { documentTitle, structuredText: structuredText.substring(0, 100), markdownText: markdownText.substring(0, 100), hasMarkdown, showingMarkdown, viewMode });
+        
+        // Update view mode button
+        this.updateViewModeButton(viewMode);
+        
+        // Update toggle markdown button
+        if (hasMarkdown) {
+            this.toggleMarkdown.innerHTML = showingMarkdown ? 
+                '<i class="fas fa-code"></i> Show Text' : 
+                '<i class="fas fa-markdown"></i> Show Markdown';
+            this.toggleMarkdown.style.display = 'inline-block';
+        } else {
+            this.toggleMarkdown.style.display = 'none';
+        }
+        
+        // Update panel visibility based on view mode
+        this.updatePanelVisibility(viewMode);
+        
+        // Update preview content
+        const content = showingMarkdown ? markdownText : structuredText;
+        console.log('Content to display:', content.substring(0, 100));
+        
+        if (showingMarkdown && hasMarkdown) {
+            // Render markdown
+            console.log('Rendering markdown');
+            this.previewContent.innerHTML = marked.parse(content);
+            this.previewContent.className = 'flex-1 overflow-y-auto bg-white rounded-lg p-4 border prose prose-sm max-w-none';
+        } else {
+            // Show plain text
+            console.log('Showing plain text');
+            this.previewContent.innerHTML = `<pre class="whitespace-pre-wrap font-mono text-sm">${this.escapeHtml(content)}</pre>`;
+            this.previewContent.className = 'flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 border';
+        }
+        
+        console.log('Preview content updated');
+    }
+    
+    updateViewModeButton(viewMode) {
+        switch(viewMode) {
+            case 'split':
+                this.toggleView.innerHTML = '<i class="fas fa-file-alt"></i> Text Only';
+                break;
+            case 'text-only':
+                this.toggleView.innerHTML = '<i class="fas fa-file-pdf"></i> PDF Only';
+                break;
+            case 'pdf-only':
+                this.toggleView.innerHTML = '<i class="fas fa-columns"></i> Split View';
+                break;
+        }
+    }
+    
+    updatePanelVisibility(viewMode) {
+        const container = document.getElementById('previewContainer');
+        
+        switch(viewMode) {
+            case 'split':
+                this.pdfPanel.style.display = 'flex';
+                this.textPanel.style.display = 'flex';
+                container.className = 'flex-1 flex gap-4 overflow-hidden';
+                break;
+            case 'text-only':
+                this.pdfPanel.style.display = 'none';
+                this.textPanel.style.display = 'flex';
+                container.className = 'flex-1 flex overflow-hidden';
+                break;
+            case 'pdf-only':
+                this.pdfPanel.style.display = 'flex';
+                this.textPanel.style.display = 'none';
+                container.className = 'flex-1 flex overflow-hidden';
+                break;
+        }
+    }
+    
+    toggleViewMode() {
+        if (!this.currentPreviewData) return;
+        
+        const currentMode = this.currentPreviewData.viewMode;
+        let newMode;
+        
+        switch(currentMode) {
+            case 'split':
+                newMode = 'text-only';
+                break;
+            case 'text-only':
+                newMode = 'pdf-only';
+                break;
+            case 'pdf-only':
+                newMode = 'split';
+                break;
+        }
+        
+        this.currentPreviewData.viewMode = newMode;
+        this.updatePreviewContent();
+    }
+    
+    loadPdfPreview(documentId) {
+        // Use Paperless-NGX's document preview endpoint
+        const pdfUrl = `/api/documents/${documentId}/preview/`;
+        this.pdfFrame.src = pdfUrl;
+        
+        // Update download button
+        this.downloadPdf.onclick = () => {
+            const downloadUrl = `/api/documents/${documentId}/download/`;
+            window.open(downloadUrl, '_blank');
+        };
+    }
+    
+    downloadDocument() {
+        if (!this.currentPreviewData) return;
+        
+        const downloadUrl = `/api/documents/${this.currentPreviewData.documentId}/download/`;
+        window.open(downloadUrl, '_blank');
+    }
+    
+    async copyTextToClipboard() {
+        if (!this.currentPreviewData) return;
+        
+        const { structuredText, markdownText, showingMarkdown } = this.currentPreviewData;
+        const textToCopy = showingMarkdown ? markdownText : structuredText;
+        
+        try {
+            await navigator.clipboard.writeText(textToCopy);
+            this.showToast('Text copied to clipboard!', 'success');
+        } catch (error) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            this.showToast('Text copied to clipboard!', 'success');
+        }
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }
 

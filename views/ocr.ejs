@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css">
     <link rel="stylesheet" href="/css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         /* Custom styles for OCR page */
         .document-row:hover {
@@ -54,6 +55,79 @@
         
         .reset-btn:hover {
             background-color: #fee2e2;
+        }
+        
+        /* Markdown preview styles */
+        .prose {
+            font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+        }
+        
+        .prose h1 {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin-bottom: 1em;
+            color: #1f2937;
+        }
+        
+        .prose h2 {
+            font-size: 1.25em;
+            font-weight: 600;
+            margin-bottom: 0.75em;
+            color: #374151;
+        }
+        
+        .prose h3 {
+            font-size: 1.125em;
+            font-weight: 600;
+            margin-bottom: 0.5em;
+            color: #4b5563;
+        }
+        
+        .prose p {
+            margin-bottom: 1em;
+            line-height: 1.6;
+        }
+        
+        .prose ul, .prose ol {
+            margin-bottom: 1em;
+            padding-left: 1.5em;
+        }
+        
+        .prose li {
+            margin-bottom: 0.25em;
+        }
+        
+        .prose code {
+            background-color: #f3f4f6;
+            padding: 0.125em 0.25em;
+            border-radius: 0.25em;
+            font-size: 0.875em;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+        
+        .prose pre {
+            background-color: #f3f4f6;
+            padding: 1em;
+            border-radius: 0.5em;
+            overflow-x: auto;
+            margin-bottom: 1em;
+        }
+        
+        .prose table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1em;
+        }
+        
+        .prose th, .prose td {
+            border: 1px solid #d1d5db;
+            padding: 0.5em;
+            text-align: left;
+        }
+        
+        .prose th {
+            background-color: #f9fafb;
+            font-weight: 600;
         }
         
         .reset-btn:disabled {
@@ -378,6 +452,59 @@
                 <button id="confirmProceed" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
                     Proceed
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Text Preview Modal -->
+    <div id="textPreviewModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-7xl mx-4 w-full max-h-[95vh] flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Document Preview</h3>
+                <div class="flex items-center gap-2">
+                    <button id="toggleView" class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600 transition-colors">
+                        <i class="fas fa-columns"></i> Split View
+                    </button>
+                    <button id="toggleMarkdown" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors">
+                        <i class="fas fa-markdown"></i> Show Markdown
+                    </button>
+                    <button id="closePreview" class="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Preview Content Container -->
+            <div id="previewContainer" class="flex-1 flex gap-4 overflow-hidden">
+                <!-- PDF Preview Panel -->
+                <div id="pdfPanel" class="flex-1 flex flex-col">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-medium text-gray-700">Original Document</h4>
+                        <div class="flex items-center gap-2">
+                            <button id="downloadPdf" class="px-2 py-1 bg-indigo-500 text-white rounded text-xs hover:bg-indigo-600 transition-colors">
+                                <i class="fas fa-download"></i> Download
+                            </button>
+                        </div>
+                    </div>
+                    <div id="pdfViewer" class="flex-1 bg-gray-100 rounded-lg border overflow-hidden">
+                        <iframe id="pdfFrame" class="w-full h-full" frameborder="0"></iframe>
+                    </div>
+                </div>
+                
+                <!-- Text Preview Panel -->
+                <div id="textPanel" class="flex-1 flex flex-col">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-medium text-gray-700">Extracted Text</h4>
+                        <div class="flex items-center gap-2">
+                            <button id="copyText" class="px-2 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+                    <div id="previewContent" class="flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 border">
+                        <!-- Content will be populated by JavaScript -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>

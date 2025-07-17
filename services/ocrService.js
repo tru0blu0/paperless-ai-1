@@ -74,7 +74,7 @@ class OCRService extends EventEmitter {
         throw new Error('Processing stopped by user request');
       }
       
-      const ocrResponse = await axios.post(`${this.ocrBaseUrl}/ocr/document`, formData, {
+      const ocrResponse = await axios.post(`${this.ocrBaseUrl}/ocr2/document`, formData, {
         headers: {
           ...formData.getHeaders(),
           'Accept': 'application/json'
@@ -92,36 +92,48 @@ class OCRService extends EventEmitter {
       console.log('Raw OCR response:', JSON.stringify(ocrResponse.data, null, 2));
       
       // 6. Extract text from OCR response
-      const extractedText = this.extractTextFromOCR(ocrResponse.data);
+      const extractionResult = this.extractTextFromOCR(ocrResponse.data);
       
-      if (!extractedText || extractedText.trim().length === 0) {
+      if (!extractionResult.text || extractionResult.text.trim().length === 0) {
         throw new Error('No text extracted from OCR response');
       }
 
       // 7. Update document content in Paperless-NGX
-      await paperlessService.updateDocumentContent(documentId, extractedText);
+      await paperlessService.updateDocumentContent(documentId, extractionResult.text);
 
       const processingTime = Date.now() - startTime;
       const originalLength = documentDetails.content ? documentDetails.content.length : 0;
 
-      // 8. Record successful processing in database
+      // 8. Record successful processing in database (including markdown text)
+      const enrichedOcrResponse = {
+        ...ocrResponse.data,
+        processing_info: {
+          ...ocrResponse.data.processing_info,
+          structured_text: extractionResult.text,
+          markdown_text: extractionResult.markdown,
+          has_markdown: extractionResult.hasMarkdown
+        }
+      };
+      
       ocrProcessingModel.recordProcessingSuccess(
         documentId,
         documentDetails.title,
         originalLength,
-        extractedText.length,
+        extractionResult.text.length,
         processingTime,
-        ocrResponse.data
+        enrichedOcrResponse
       );
 
-      console.log(`Successfully processed document ${documentId}, extracted ${extractedText.length} characters`);
+      console.log(`Successfully processed document ${documentId}, extracted ${extractionResult.text.length} characters`);
       
       return {
         success: true,
         documentId,
         documentTitle: documentDetails.title,
-        extractedText,
-        textLength: extractedText.length,
+        extractedText: extractionResult.text,
+        markdownText: extractionResult.markdown,
+        hasMarkdown: extractionResult.hasMarkdown,
+        textLength: extractionResult.text.length,
         originalLength,
         processingTime,
         wasAlreadyProcessed: false
@@ -447,7 +459,7 @@ class OCRService extends EventEmitter {
   /**
    * Extract text from OCR response
    * @param {Object} ocrResponse - OCR service response
-   * @returns {string} Combined text from all recognized text lines
+   * @returns {Object} Object containing text, markdown, and hasMarkdown properties
    */
   extractTextFromOCR(ocrResponse) {
     if (!ocrResponse) {
@@ -455,14 +467,22 @@ class OCRService extends EventEmitter {
     }
     
     let extractedText = '';
+    let markdownText = '';
     
-    // Handle PDF response format
-    if (ocrResponse.full_document_text) {
-      extractedText = ocrResponse.full_document_text;
+    // Handle new structured response format
+    if (ocrResponse.structured_text) {
+      extractedText = ocrResponse.structured_text;
+      markdownText = ocrResponse.markdown_text || ocrResponse.structured_text;
     }
-    // Handle image response format
+    // Handle PDF response format (legacy)
+    else if (ocrResponse.full_document_text) {
+      extractedText = ocrResponse.full_document_text;
+      markdownText = extractedText;
+    }
+    // Handle image response format (legacy)
     else if (ocrResponse.full_text) {
       extractedText = ocrResponse.full_text;
+      markdownText = extractedText;
     }
     // Handle legacy rec_texts format (fallback)
     else if (ocrResponse.rec_texts && Array.isArray(ocrResponse.rec_texts)) {
@@ -471,6 +491,7 @@ class OCRService extends EventEmitter {
         .map(text => text.trim())
         .filter(text => text.length > 0)
         .join('\n');
+      markdownText = extractedText;
     }
     else {
       throw new Error('Invalid OCR response format - missing text content');
@@ -480,7 +501,11 @@ class OCRService extends EventEmitter {
       throw new Error('No text extracted from OCR response');
     }
     
-    return extractedText.trim();
+    return {
+      text: extractedText.trim(),
+      markdown: markdownText.trim(),
+      hasMarkdown: !!ocrResponse.markdown_text
+    };
   }
 
   /**
@@ -542,6 +567,70 @@ class OCRService extends EventEmitter {
    */
   getProcessedDocumentIds() {
     return ocrProcessingModel.getProcessedDocumentIds();
+  }
+
+  /**
+   * Get processed document text and metadata
+   * @param {number} documentId - Document ID
+   * @returns {Object|null} Processing data or null if not found
+   */
+  getProcessedDocumentText(documentId) {
+    const history = ocrProcessingModel.getDocumentProcessingHistory(documentId);
+    
+    // Find the most recent successful processing
+    const successfulProcessing = history.find(record => record.status === 'success');
+    if (!successfulProcessing) {
+      return null;
+    }
+    
+    // Try to parse the OCR service response to get both text types
+    let extractedText = 'No text available';
+    let markdownText = null;
+    
+    try {
+      if (successfulProcessing.ocr_service_response) {
+        const ocrResponse = JSON.parse(successfulProcessing.ocr_service_response);
+        
+        // Check if it's stored as processing info from our new format
+        if (ocrResponse.processing_info && ocrResponse.processing_info.structured_text) {
+          extractedText = ocrResponse.processing_info.structured_text;
+          markdownText = ocrResponse.processing_info.markdown_text;
+        }
+        // Fallback to original OCR response format
+        else if (ocrResponse.structured_text) {
+          extractedText = ocrResponse.structured_text;
+          markdownText = ocrResponse.markdown_text;
+        }
+        // Legacy format fallback
+        else if (ocrResponse.full_document_text) {
+          extractedText = ocrResponse.full_document_text;
+        }
+        else if (ocrResponse.full_text) {
+          extractedText = ocrResponse.full_text;
+        }
+        // If we still don't have text, show a placeholder that indicates text is available but not cached
+        if (extractedText === 'No text available' && successfulProcessing.extracted_content_length > 0) {
+          console.log('No text found in OCR response, showing placeholder for document', documentId);
+          extractedText = `[Text available - ${successfulProcessing.extracted_content_length} characters extracted]
+
+This document was processed with an older version of the OCR system that didn't store the full text.
+To see the extracted text, please reprocess this document with the updated OCR service.`;
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing OCR response for text:', error);
+    }
+    
+    return {
+      document_id: documentId,
+      document_title: successfulProcessing.document_title,
+      extracted_text: extractedText,
+      markdown_text: markdownText,
+      processing_date: successfulProcessing.processing_date,
+      processing_time_ms: successfulProcessing.processing_time_ms,
+      original_content_length: successfulProcessing.original_content_length,
+      extracted_content_length: successfulProcessing.extracted_content_length
+    };
   }
 
   /**

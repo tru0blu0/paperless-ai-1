@@ -4383,4 +4383,107 @@ router.get('/dashboard/doc/:id', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/documents/{documentId}/preview:
+ *   get:
+ *     summary: Preview a document
+ *     description: Proxy endpoint to preview a document from Paperless-NGX
+ *     tags: [Documents]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The document ID
+ *     responses:
+ *       200:
+ *         description: Document preview
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ */
+router.get('/api/documents/:documentId/preview', authenticateJWT, async (req, res) => {
+  try {
+    const documentId = req.params.documentId;
+    const response = await fetch(
+      `${process.env.PAPERLESS_API_URL}/documents/${documentId}/preview/`,
+      {
+        headers: {
+          'Authorization': `Token ${process.env.PAPERLESS_API_TOKEN}`
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Failed to fetch document preview' });
+    }
+    
+    // Forward the response headers and body
+    res.set('Content-Type', response.headers.get('Content-Type'));
+    res.set('Content-Length', response.headers.get('Content-Length'));
+    response.body.pipe(res);
+  } catch (error) {
+    console.error('Error fetching document preview:', error);
+    res.status(500).json({ error: 'Failed to fetch document preview' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/documents/{documentId}/download:
+ *   get:
+ *     summary: Download a document
+ *     description: Proxy endpoint to download a document from Paperless-NGX
+ *     tags: [Documents]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The document ID
+ *     responses:
+ *       200:
+ *         description: Document download
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ */
+router.get('/api/documents/:documentId/download', authenticateJWT, async (req, res) => {
+  try {
+    const documentId = req.params.documentId;
+    const response = await fetch(
+      `${process.env.PAPERLESS_API_URL}/documents/${documentId}/download/`,
+      {
+        headers: {
+          'Authorization': `Token ${process.env.PAPERLESS_API_TOKEN}`
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Failed to download document' });
+    }
+    
+    // Forward the response headers and body
+    res.set('Content-Type', response.headers.get('Content-Type'));
+    res.set('Content-Length', response.headers.get('Content-Length'));
+    res.set('Content-Disposition', response.headers.get('Content-Disposition'));
+    response.body.pipe(res);
+  } catch (error) {
+    console.error('Error downloading document:', error);
+    res.status(500).json({ error: 'Failed to download document' });
+  }
+});
+
 module.exports = router;

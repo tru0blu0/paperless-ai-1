@@ -728,6 +728,89 @@ router.get('/processed', authenticateJWT, (req, res) => {
 /**
  * @swagger
  * /api/ocr/processed/{documentId}:
+ *   get:
+ *     summary: Get processed document text
+ *     description: |
+ *       Retrieves the processed text for a specific document including both structured text and markdown.
+ *       Returns the original extracted text and formatted markdown text if available.
+ *     tags: [API, OCR]
+ *     security:
+ *       - BearerAuth: []
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The document ID to get processed text for
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: Processed document text retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 processing:
+ *                   type: object
+ *                   properties:
+ *                     document_id:
+ *                       type: integer
+ *                     document_title:
+ *                       type: string
+ *                     extracted_text:
+ *                       type: string
+ *                     markdown_text:
+ *                       type: string
+ *                     processing_date:
+ *                       type: string
+ *                       format: date-time
+ *       404:
+ *         description: Document not found or not processed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error occurred while retrieving processed text
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/processed/:documentId', authenticateJWT, (req, res) => {
+  try {
+    const documentId = parseInt(req.params.documentId);
+    const processing = ocrService.getProcessedDocumentText(documentId);
+    
+    if (!processing) {
+      return res.status(404).json({
+        success: false,
+        error: 'Document not found or not processed'
+      });
+    }
+    
+    res.json({
+      success: true,
+      processing: processing
+    });
+  } catch (error) {
+    console.error('Error retrieving processed document text:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/ocr/processed/{documentId}:
  *   delete:
  *     summary: Reset processing status for a specific document
  *     description: |
