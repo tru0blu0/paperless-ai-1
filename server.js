@@ -434,6 +434,7 @@ async function scanDocuments() {
 app.use('/', setupRoutes);
 const authRoutes = require('./routes/auth');
 const ragRoutes = require('./routes/rag');
+const ocrRoutes = require('./routes/ocr');
 
 // Mount RAG routes if enabled
 if (process.env.RAG_SERVICE_ENABLED === 'true') {
@@ -451,6 +452,52 @@ if (process.env.RAG_SERVICE_ENABLED === 'true') {
     }
   });
 }
+
+// Mount OCR routes
+app.use('/api/ocr', ocrRoutes);
+
+/**
+ * @swagger
+ * /ocr:
+ *   get:
+ *     summary: OCR reprocessing management page
+ *     description: |
+ *       Renders the OCR reprocessing management interface where users can select documents
+ *       for OCR reprocessing and monitor the progress of batch operations.
+ *       
+ *       This page provides functionality to:
+ *       - View all documents available for OCR reprocessing
+ *       - Select specific documents or all documents for processing
+ *       - Monitor real-time processing progress
+ *       - View processing logs and statistics
+ *       - Stop ongoing processing operations
+ *     tags: [Navigation, OCR]
+ *     responses:
+ *       200:
+ *         description: OCR management page rendered successfully
+ *         content:
+ *           text/html:
+ *             schema:
+ *               type: string
+ *               example: "<html><body>OCR Management Interface</body></html>"
+ *       500:
+ *         description: Server error occurred while rendering the page
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+app.get('/ocr', async (req, res) => {
+  try {
+    res.render('ocr', { 
+      title: 'OCR Reprocessing',
+      theme: 'light' // Default theme, will be overridden by client-side theme manager
+    });
+  } catch (error) {
+    console.error('Error rendering OCR page:', error);
+    res.status(500).send('Error loading OCR interface');
+  }
+});
 
 /**
  * @swagger

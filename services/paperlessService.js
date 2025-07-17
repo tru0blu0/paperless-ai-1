@@ -1283,6 +1283,124 @@ async getOrCreateDocumentType(name) {
       return null;
     }
   }
+
+  /**
+   * Download document file from Paperless-NGX
+   * @param {number} documentId - Document ID to download
+   * @returns {Promise<Buffer>} Document file as Buffer
+   */
+  async downloadDocument(documentId) {
+    this.initialize();
+    try {
+      const response = await this.client.get(`/documents/${documentId}/download/`, {
+        responseType: 'arraybuffer',
+        timeout: 60000 // 60 seconds timeout for large files
+      });
+
+      if (response.data && response.data.byteLength > 0) {
+        return Buffer.from(response.data);
+      }
+
+      console.warn(`[WARN] No file data for document ${documentId}`);
+      return null;
+    } catch (error) {
+      console.error(`[ERROR] downloading document ${documentId}:`, error.message);
+      if (error.response) {
+        console.log('[ERROR] Status:', error.response.status);
+        console.log('[ERROR] Headers:', error.response.headers);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update document content in Paperless-NGX
+   * @param {number} documentId - Document ID to update
+   * @param {string} content - New content for the document
+   * @returns {Promise<Object>} Updated document data
+   */
+  async updateDocumentContent(documentId, content) {
+    this.initialize();
+    try {
+      if (!content || typeof content !== 'string') {
+        throw new Error('Content must be a non-empty string');
+      }
+
+      const updateData = {
+        content: content.trim()
+      };
+
+      console.log(`[DEBUG] Updating content for document ${documentId}, length: ${content.length}`);
+      
+      const response = await this.client.patch(`/documents/${documentId}/`, updateData);
+      
+      console.log(`[SUCCESS] Updated content for document ${documentId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`[ERROR] updating content for document ${documentId}:`, error.message);
+      if (error.response) {
+        console.log('[ERROR] Status:', error.response.status);
+        console.log('[ERROR] Response:', error.response.data);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Get document file type from Paperless-NGX
+   * @param {number} documentId - Document ID
+   * @returns {Promise<string>} File type/mime type
+   */
+  async getDocumentFileType(documentId) {
+    this.initialize();
+    try {
+      const document = await this.getDocument(documentId);
+      return document.file_type || 'application/pdf';
+    } catch (error) {
+      console.error(`[ERROR] getting file type for document ${documentId}:`, error.message);
+      return 'application/pdf'; // Default fallback
+    }
+  }
+
+  /**
+   * Check if document exists in Paperless-NGX
+   * @param {number} documentId - Document ID to check
+   * @returns {Promise<boolean>} True if document exists
+   */
+  async documentExists(documentId) {
+    this.initialize();
+    try {
+      await this.client.get(`/documents/${documentId}/`);
+      return true;
+    } catch (error) {
+      if (error.response && error.response.status === 404) {
+        return false;
+      }
+      console.error(`[ERROR] checking if document ${documentId} exists:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get document metadata for OCR processing
+   * @param {number} documentId - Document ID
+   * @returns {Promise<Object>} Document metadata with file type and content info
+   */
+  async getDocumentForOCR(documentId) {
+    this.initialize();
+    try {
+      const response = await this.client.get(`/documents/${documentId}/`, {
+        params: {
+          fields: 'id,title,file_type,content,created,correspondent,document_type'
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error(`[ERROR] getting document ${documentId} for OCR:`, error.message);
+      throw error;
+    }
+  }
 }
 
 

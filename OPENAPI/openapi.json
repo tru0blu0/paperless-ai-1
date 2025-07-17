@@ -532,6 +532,39 @@
         }
       }
     },
+    "/ocr": {
+      "get": {
+        "summary": "OCR reprocessing management page",
+        "description": "Renders the OCR reprocessing management interface where users can select documents\nfor OCR reprocessing and monitor the progress of batch operations.\n\nThis page provides functionality to:\n- View all documents available for OCR reprocessing\n- Select specific documents or all documents for processing\n- Monitor real-time processing progress\n- View processing logs and statistics\n- Stop ongoing processing operations\n",
+        "tags": [
+          "Navigation",
+          "OCR"
+        ],
+        "responses": {
+          "200": {
+            "description": "OCR management page rendered successfully",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string",
+                  "example": "<html><body>OCR Management Interface</body></html>"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while rendering the page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Root endpoint that redirects to the dashboard",
@@ -634,6 +667,1022 @@
                       "description": "Details about the service unavailability"
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ocr/documents": {
+      "get": {
+        "summary": "Get documents available for OCR reprocessing",
+        "description": "Retrieves all documents from Paperless-NGX that are available for OCR reprocessing.\nReturns document metadata including ID, title, creation date, correspondent, and file type.\n\nThis endpoint is used to populate the document selection interface in the OCR management page.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Documents retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "example": 123
+                          },
+                          "title": {
+                            "type": "string",
+                            "example": "Invoice_2024_001.pdf"
+                          },
+                          "created": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2024-01-15T10:30:00Z"
+                          },
+                          "correspondent": {
+                            "type": "string",
+                            "example": "Acme Corporation"
+                          },
+                          "document_type": {
+                            "type": "string",
+                            "example": "Invoice"
+                          },
+                          "file_type": {
+                            "type": "string",
+                            "example": "application/pdf"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while retrieving documents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ocr/process": {
+      "post": {
+        "summary": "Start OCR processing for selected documents",
+        "description": "Initiates OCR reprocessing for the specified documents. The processing runs asynchronously\nin the background, and progress can be monitored via the events endpoint or status endpoint.\n\nEach document will be downloaded from Paperless-NGX, sent to the OCR service, and the\nextracted text will be saved back to Paperless-NGX, replacing the original content.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "documentIds"
+                ],
+                "properties": {
+                  "documentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "description": "Array of document IDs to process",
+                    "example": [
+                      123,
+                      456,
+                      789
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OCR processing started successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "OCR processing started"
+                    },
+                    "totalDocuments": {
+                      "type": "integer",
+                      "example": 3
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request - missing or invalid documentIds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "documentIds array is required"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Processing already in progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Processing already in progress"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while starting processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ocr/status": {
+      "get": {
+        "summary": "Get current OCR processing status",
+        "description": "Returns the current status of OCR processing including progress information,\nprocessed document counts, error details, and estimated completion time.\n\nUse this endpoint to check processing status without establishing a persistent connection.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "status": {
+                      "type": "object",
+                      "properties": {
+                        "isProcessing": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "currentProcessing": {
+                          "type": "object",
+                          "properties": {
+                            "documentId": {
+                              "type": "integer",
+                              "example": 123
+                            },
+                            "index": {
+                              "type": "integer",
+                              "example": 2
+                            },
+                            "total": {
+                              "type": "integer",
+                              "example": 5
+                            }
+                          }
+                        },
+                        "totalDocuments": {
+                          "type": "integer",
+                          "example": 5
+                        },
+                        "processedDocuments": {
+                          "type": "integer",
+                          "example": 2
+                        },
+                        "successfulDocuments": {
+                          "type": "integer",
+                          "example": 2
+                        },
+                        "failedDocuments": {
+                          "type": "integer",
+                          "example": 0
+                        },
+                        "progress": {
+                          "type": "number",
+                          "example": 40
+                        },
+                        "startTime": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2024-01-15T10:30:00Z"
+                        },
+                        "estimatedCompletion": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2024-01-15T10:35:00Z"
+                        },
+                        "errors": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "documentId": {
+                                "type": "integer"
+                              },
+                              "error": {
+                                "type": "string"
+                              },
+                              "timestamp": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while retrieving status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ocr/stop": {
+      "post": {
+        "summary": "Stop current OCR processing",
+        "description": "Stops the current OCR processing operation. The processing will stop after the\ncurrent document is completed. Already processed documents will remain updated.\n\nThis is a graceful stop that doesn't interrupt the current document processing.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Processing stopped successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Processing stopped"
+                    },
+                    "processedDocuments": {
+                      "type": "integer",
+                      "example": 3
+                    },
+                    "totalDocuments": {
+                      "type": "integer",
+                      "example": 10
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No processing in progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "No processing in progress"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while stopping processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ocr/health": {
+      "get": {
+        "summary": "Check OCR service health",
+        "description": "Checks if the OCR service container is available and responding.\nThis endpoint tests the connection to the OCR service at port 8123.\n\nUse this endpoint to verify OCR service availability before starting processing.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OCR service health check result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "available": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "OCR service is available"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2024-01-15T10:30:00Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred during health check",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ocr/statistics": {
+      "get": {
+        "summary": "Get OCR processing statistics",
+        "description": "Returns statistics about OCR processing including success rates, error counts,\nand processing history. This provides insights into OCR performance and reliability.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statistics retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "statistics": {
+                      "type": "object",
+                      "properties": {
+                        "totalProcessed": {
+                          "type": "integer",
+                          "example": 150
+                        },
+                        "successful": {
+                          "type": "integer",
+                          "example": 142
+                        },
+                        "failed": {
+                          "type": "integer",
+                          "example": 8
+                        },
+                        "successRate": {
+                          "type": "number",
+                          "example": 94.67
+                        },
+                        "errors": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "documentId": {
+                                "type": "integer"
+                              },
+                              "error": {
+                                "type": "string"
+                              },
+                              "timestamp": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while retrieving statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ocr/events": {
+      "get": {
+        "summary": "Server-Sent Events for real-time OCR processing updates",
+        "description": "Establishes a Server-Sent Events connection for real-time updates during OCR processing.\nThis endpoint streams processing events including document start/completion, progress updates,\nand error notifications.\n\nEvent types:\n- `status`: Current processing status\n- `processingStarted`: Processing has begun\n- `documentStarted`: Starting to process a specific document\n- `documentCompleted`: Finished processing a document (success or failure)\n- `processingCompleted`: All documents processed\n- `processingStopped`: Processing stopped by user\n- `processingError`: Fatal error during processing\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server-Sent Events stream established",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "example": "event: status\ndata: {\"isProcessing\":true,\"progress\":25.5,\"currentProcessing\":{\"documentId\":123}}\n\nevent: documentCompleted\ndata: {\"success\":true,\"documentId\":123,\"progress\":50.0}\n"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ocr/processed": {
+      "get": {
+        "summary": "Get list of processed documents",
+        "description": "Returns a list of document IDs that have been successfully processed by OCR.\nThis endpoint is useful for checking which documents have already been processed.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Processed documents list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "processedDocuments": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      },
+                      "example": [
+                        123,
+                        456,
+                        789
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "example": 3
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while retrieving processed documents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Reset all processing history",
+        "description": "Clears all OCR processing history, allowing all documents to be processed again.\nThis is useful when you want to start fresh or when there were issues with previous processing.\n\n**Warning**: This action cannot be undone and will remove all processing history.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All processing history reset successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "All processing history reset"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while resetting all processing history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ocr/processed/{documentId}": {
+      "delete": {
+        "summary": "Reset processing status for a specific document",
+        "description": "Removes the processing status for a specific document, allowing it to be processed again.\nThis is useful when you want to reprocess a document that was previously processed.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The document ID to reset",
+            "example": 123
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document processing status reset successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Document processing status reset"
+                    },
+                    "documentId": {
+                      "type": "integer",
+                      "example": 123
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid document ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Invalid document ID"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while resetting document status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ocr/history": {
+      "get": {
+        "summary": "Get recent processing history",
+        "description": "Returns recent OCR processing history including successful and failed attempts.\nThis provides detailed information about processing attempts for debugging and monitoring.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            },
+            "description": "Maximum number of history records to return",
+            "example": 25
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Processing history retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "document_id": {
+                            "type": "integer",
+                            "example": 123
+                          },
+                          "document_title": {
+                            "type": "string",
+                            "example": "Invoice_2024_001.pdf"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "success",
+                              "failed",
+                              "processing"
+                            ],
+                            "example": "success"
+                          },
+                          "processing_date": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2024-01-15T10:30:00Z"
+                          },
+                          "processing_time_ms": {
+                            "type": "integer",
+                            "example": 2500
+                          },
+                          "original_content_length": {
+                            "type": "integer",
+                            "example": 1200
+                          },
+                          "extracted_content_length": {
+                            "type": "integer",
+                            "example": 1150
+                          },
+                          "error_message": {
+                            "type": "string",
+                            "example": null
+                          }
+                        }
+                      }
+                    },
+                    "count": {
+                      "type": "integer",
+                      "example": 25
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while retrieving processing history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ocr/history/{documentId}": {
+      "get": {
+        "summary": "Get processing history for a specific document",
+        "description": "Returns the complete processing history for a specific document, including all attempts.\nThis is useful for debugging issues with specific documents.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The document ID to get history for",
+            "example": 123
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document processing history retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "documentId": {
+                      "type": "integer",
+                      "example": 123
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "example": 1
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "success",
+                              "failed",
+                              "processing"
+                            ],
+                            "example": "success"
+                          },
+                          "processing_date": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2024-01-15T10:30:00Z"
+                          },
+                          "processing_time_ms": {
+                            "type": "integer",
+                            "example": 2500
+                          },
+                          "error_message": {
+                            "type": "string",
+                            "example": null
+                          }
+                        }
+                      }
+                    },
+                    "count": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid document ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Invalid document ID"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while retrieving document history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

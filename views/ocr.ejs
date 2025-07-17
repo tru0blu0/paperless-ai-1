@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="<%= theme || 'light' %>">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Reprocessing - Paperless-AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <style>
+        /* Custom styles for OCR page */
+        .document-row:hover {
+            background-color: var(--hover-bg);
+        }
+        
+        .document-checkbox {
+            accent-color: var(--accent-primary);
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-ready { background-color: #f3f4f6; color: #374151; }
+        .status-processing { background-color: #dbeafe; color: #1e40af; }
+        .status-completed { background-color: #dcfce7; color: #166534; }
+        .status-error { background-color: #fee2e2; color: #dc2626; }
+        .status-processed { background-color: #e0e7ff; color: #3730a3; }
+        
+        .document-processed {
+            background-color: var(--bg-secondary);
+            opacity: 0.8;
+        }
+        
+        .document-processed .document-checkbox {
+            opacity: 0.7;
+        }
+        
+        .reset-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 0.25rem;
+            transition: background-color 0.2s;
+        }
+        
+        .reset-btn:hover {
+            background-color: #fee2e2;
+        }
+        
+        .reset-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .processing-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            padding: 0.5rem;
+            margin-bottom: 0.25rem;
+            border-radius: 0.25rem;
+            background-color: var(--bg-secondary);
+        }
+        
+        .log-success { color: #059669; }
+        .log-error { color: #dc2626; }
+        .log-warning { color: #d97706; }
+        .log-info { color: #2563eb; }
+        
+        .progress-container {
+            background-color: var(--bg-secondary);
+            border-radius: 0.5rem;
+            height: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 0.5rem;
+        }
+        
+        .spinner {
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--accent-primary);
+            border-radius: 50%;
+            width: 3rem;
+            height: 3rem;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .table-container {
+            max-height: 60vh;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+        }
+        
+        .table-header {
+            background-color: var(--bg-secondary);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .no-documents {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+        
+        .health-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .health-available {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        
+        .health-unavailable {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .health-checking {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="layout-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="/favicon.ico" class="no-invert" alt="Paperless AI Logo" style="height: 60px;">
+                <h1 class="brand-title">Paperless-AI<small style="display: block; font-size: 0.7em; opacity: 0.7;">OCR Reprocessing</small></h1>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="/dashboard" class="sidebar-link">
+                        <i class="fas fa-home"></i>
+                        <span>Dashboard</span>
+                    </a></li>
+                    <li><a href="/manual" class="sidebar-link">
+                        <i class="fas fa-file"></i>
+                        <span>Manual</span>
+                    </a></li>
+                    <li><a href="/chat" class="sidebar-link">
+                        <i class="fas fa-comment"></i>
+                        <span>Chat</span>
+                    </a></li>
+                    <li><a href="/rag" class="sidebar-link">
+                        <i class="fas fa-comment"></i>
+                        <span>RAG Chat</span>
+                    </a></li>
+                    <li><a href="/playground" class="sidebar-link">
+                        <i class="fas fa-flask"></i>
+                        <span>Playground</span>
+                    </a></li>
+                    <li><a href="/ocr" class="sidebar-link active">
+                        <i class="fas fa-text-width"></i>
+                        <span>OCR Reprocessing</span>
+                    </a></li>
+                    <li><a href="/history" class="sidebar-link">
+                        <i class="fas fa-clock"></i>
+                        <span>History</span>
+                    </a></li>
+                    <li><a href="/settings" class="sidebar-link">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a></li>
+                    <li><a href="/logout" class="sidebar-link">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <div class="content-header">
+                    <div class="flex items-center gap-3">
+                        <h2 class="content-title">OCR Reprocessing</h2>
+                        <div id="healthIndicator" class="health-indicator health-checking">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Checking OCR Service...</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="themeToggle" class="theme-toggle">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Processing Status Card -->
+                <div id="statusCard" class="material-card mb-6 hidden">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="spinner"></div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="font-semibold text-lg">Processing Documents</span>
+                                <span id="progressBadge" class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">0/0</span>
+                            </div>
+                            <div class="progress-container mb-2">
+                                <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span id="currentDoc">Preparing...</span>
+                                <span id="estimatedTime">Calculating...</span>
+                            </div>
+                        </div>
+                        <button id="stopBtn" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2">
+                            <i class="fas fa-stop"></i>
+                            <span>Stop</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Controls Card -->
+                <div class="material-card mb-6">
+                    <h3 class="card-title mb-4">Processing Controls</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <button id="processAllBtn" class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-play"></i>
+                            <span>Process All Documents</span>
+                        </button>
+                        <button id="processSelectedBtn" class="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors opacity-50 cursor-not-allowed" disabled>
+                            <i class="fas fa-play"></i>
+                            <span>Process Selected</span>
+                        </button>
+                        <button id="refreshBtn" class="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-sync"></i>
+                            <span>Refresh</span>
+                        </button>
+                        <button id="clearLogBtn" class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-eraser"></i>
+                            <span>Clear Log</span>
+                        </button>
+                        <button id="resetAllBtn" class="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-undo"></i>
+                            <span>Reset All</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Documents Table Card -->
+                <div class="material-card mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="card-title">Documents</h3>
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center gap-2">
+                                <span id="documentStats" class="text-sm text-gray-600">Loading...</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="showProcessed" class="document-checkbox">
+                                    <span>Show Processed</span>
+                                </label>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="selectionCount" class="text-sm text-gray-600">0 documents selected</span>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="selectAll" class="document-checkbox">
+                                    <span>Select All</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="w-full">
+                            <thead class="table-header">
+                                <tr>
+                                    <th class="text-left p-3 w-12">
+                                        <i class="fas fa-check-square text-gray-400"></i>
+                                    </th>
+                                    <th class="text-left p-3 w-20">ID</th>
+                                    <th class="text-left p-3">Title</th>
+                                    <th class="text-left p-3 w-32">Type</th>
+                                    <th class="text-left p-3 w-32">Created</th>
+                                    <th class="text-left p-3 w-24">Status</th>
+                                    <th class="text-left p-3 w-20">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="documentsTable">
+                                <!-- Loading indicator -->
+                                <tr>
+                                    <td colspan="7" class="text-center py-8">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <i class="fas fa-spinner fa-spin text-blue-500"></i>
+                                            <span>Loading documents...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Processing Log Card -->
+                <div class="material-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="card-title">Processing Log</h3>
+                        <div class="flex items-center gap-2">
+                            <button id="autoScrollBtn" class="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm hover:bg-gray-200 transition-colors">
+                                <i class="fas fa-arrow-down"></i>
+                                <span>Auto-scroll</span>
+                            </button>
+                            <button id="downloadLogBtn" class="px-3 py-1 bg-blue-100 text-blue-600 rounded text-sm hover:bg-blue-200 transition-colors">
+                                <i class="fas fa-download"></i>
+                                <span>Download</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="processingLog" class="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto border">
+                        <div class="log-entry text-gray-500">
+                            <i class="fas fa-info-circle"></i>
+                            Processing log will appear here...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Toast notifications will appear here -->
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-md mx-4">
+            <div class="flex items-center gap-3 mb-4">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-xl"></i>
+                <h3 class="text-lg font-semibold">Confirm Action</h3>
+            </div>
+            <p id="confirmMessage" class="text-gray-600 mb-6">Are you sure you want to proceed?</p>
+            <div class="flex gap-3 justify-end">
+                <button id="confirmCancel" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors">
+                    Cancel
+                </button>
+                <button id="confirmProceed" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                    Proceed
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/ocr.js"></script>
+</body>
+</html>

@@ -1,23 +1,51 @@
-services:
-  paperless-ai:
-    image: clusterzx/paperless-ai
-    container_name: paperless-ai
-    network_mode: bridge
-    restart: unless-stopped
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges=true
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - PAPERLESS_AI_PORT=${PAPERLESS_AI_PORT:-3000}
-      - RAG_SERVICE_URL=http://localhost:8000
-      - RAG_SERVICE_ENABLED=true
-    ports:
-      - "3000:${PAPERLESS_AI_PORT:-3000}"
-    volumes:
-      - paperless-ai_data:/app/data
+  services:
+    paperless-ai:
+      image: clusterzx/paperless-ai
+      container_name: paperless-ai
+      restart: unless-stopped
+      cap_drop:
+        - ALL
+      security_opt:
+        - no-new-privileges=true
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - PAPERLESS_AI_PORT=${PAPERLESS_AI_PORT:-3000}
+        - RAG_SERVICE_URL=http://localhost:8000
+        - RAG_SERVICE_ENABLED=true
+        - OCR_SERVICE_URL=http://ocr-container:8123  # Add this line
+      ports:
+        - "3000:${PAPERLESS_AI_PORT:-3000}"
+      volumes:
+        - paperless-ai_data:/app/data
+      networks:
+        - paperless-ai-network
+      depends_on:
+        - ocr-container
 
-volumes:
-  paperless-ai_data:
+    ocr-container:
+      image: clusterzx/paperless-ocr
+      container_name: ocr-container
+      restart: unless-stopped
+      cap_drop:
+        - ALL
+      security_opt:
+        - no-new-privileges=true
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - OCR_PORT=${OCR_PORT:-8123}
+      ports:
+        - "8123:${OCR_PORT:-8123}"
+      volumes:
+        - ocr_data:/app/output
+      networks:
+        - paperless-ai-network
+
+  volumes:
+    paperless-ai_data:
+    ocr_data:
+
+  networks:
+    paperless-ai-network:
+      driver: bridge

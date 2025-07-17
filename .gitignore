@@ -25,6 +25,8 @@ rag_config.conf
 indexed.conf
 indexing_complete.flag
 RAGZ_README.md
+.claude/
+CLAUDE.md
 
 # Local development files
 .local/
