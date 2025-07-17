@@ -1313,6 +1313,35 @@ async getOrCreateDocumentType(name) {
     }
   }
 
+    /**
+   * Download originaldocument file from Paperless-NGX
+   * @param {number} documentId - Document ID to download
+   * @returns {Promise<Buffer>} Document file as Buffer
+   */
+  async downloadOriginalDocument(documentId) {
+    this.initialize();
+    try {
+      const response = await this.client.get(`/documents/${documentId}/download/?original=true`, {
+        responseType: 'arraybuffer',
+        timeout: 60000 // 60 seconds timeout for large files
+      });
+
+      if (response.data && response.data.byteLength > 0) {
+        return Buffer.from(response.data);
+      }
+
+      console.warn(`[WARN] No file data for document ${documentId}`);
+      return null;
+    } catch (error) {
+      console.error(`[ERROR] downloading originaldocument ${documentId}:`, error.message);
+      if (error.response) {
+        console.log('[ERROR] Status:', error.response.status);
+        console.log('[ERROR] Headers:', error.response.headers);
+      }
+      throw error;
+    }
+  }
+
   /**
    * Update document content in Paperless-NGX
    * @param {number} documentId - Document ID to update

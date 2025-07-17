@@ -25,6 +25,7 @@ class OCRService extends EventEmitter {
     this.errors = [];
     this.startTime = null;
     this.shouldStop = false;
+    this.currentRequest = null; // Track current axios request for cancellation
   }
 
   /**
@@ -48,7 +49,7 @@ class OCRService extends EventEmitter {
       ocrProcessingModel.recordProcessingStart(documentId, documentDetails.title);
 
       // 3. Download document file from Paperless-NGX
-      const documentBuffer = await paperlessService.downloadDocument(documentId);
+      const documentBuffer = await paperlessService.downloadOriginalDocument(documentId);
       if (!documentBuffer) {
         throw new Error(`Failed to download document ${documentId}`);
       }
@@ -63,6 +64,16 @@ class OCRService extends EventEmitter {
 
       // 5. Send to OCR service
       console.log(`Sending document ${documentId} to OCR service`);
+      
+      // Create cancellation token
+      const cancelToken = axios.CancelToken.source();
+      this.currentRequest = cancelToken;
+      
+      // Check if stop was requested before making the request
+      if (this.shouldStop) {
+        throw new Error('Processing stopped by user request');
+      }
+      
       const ocrResponse = await axios.post(`${this.ocrBaseUrl}/ocr/document`, formData, {
         headers: {
           ...formData.getHeaders(),
@@ -70,9 +81,13 @@ class OCRService extends EventEmitter {
         },
         timeout: 300000, // 5 minutes timeout for OCR processing
         maxContentLength: Infinity,
-        maxBodyLength: Infinity
+        maxBodyLength: Infinity,
+        cancelToken: cancelToken.token
       });
 
+      // Clear current request after successful completion
+      this.currentRequest = null;
+      
       // 6. Log raw OCR response for debugging
       console.log('Raw OCR response:', JSON.stringify(ocrResponse.data, null, 2));
       
@@ -114,6 +129,24 @@ class OCRService extends EventEmitter {
       
     } catch (error) {
       const processingTime = Date.now() - startTime;
+      
+      // Clear current request on error
+      this.currentRequest = null;
+      
+      // Handle axios cancellation gracefully
+      if (axios.isCancel(error)) {
+        console.log(`Processing document ${documentId} was cancelled`);
+        // Don't treat cancellation as a processing error
+        return {
+          success: false,
+          documentId,
+          error: 'Processing stopped by user request',
+          processingTime,
+          wasCancelled: true,
+          wasAlreadyProcessed: false
+        };
+      }
+      
       console.error(`Error processing document ${documentId}: ${error.message}`);
       
       // Get document title for error recording
@@ -256,6 +289,12 @@ class OCRService extends EventEmitter {
         if (result.success) {
           this.successfulDocuments++;
         }
+        
+        // If document was cancelled, break the loop
+        if (result.wasCancelled) {
+          console.log('Document processing was cancelled, stopping batch');
+          break;
+        }
 
         const progress = (this.processedDocuments / this.totalDocuments) * 100;
         
@@ -324,6 +363,7 @@ class OCRService extends EventEmitter {
     } finally {
       this.isProcessing = false;
       this.currentProcessing = null;
+      this.currentRequest = null;
       this.shouldStop = false;
     }
   }
@@ -338,6 +378,13 @@ class OCRService extends EventEmitter {
 
     console.log('Stopping OCR processing');
     this.shouldStop = true;
+    
+    // Cancel current request if it exists
+    if (this.currentRequest) {
+      console.log('Cancelling current OCR request');
+      this.currentRequest.cancel('Processing stopped by user request');
+      this.currentRequest = null;
+    }
     
     const stoppedData = {
       processedDocuments: this.processedDocuments,
