@@ -36,7 +36,7 @@ class OCRService extends EventEmitter {
     const startTime = Date.now();
     
     try {
-      logger.log(`Starting OCR processing for document ${documentId}`);
+      console.log(`Starting OCR processing for document ${documentId}`);
       
       // 1. Get document details from Paperless-NGX
       const documentDetails = await paperlessService.getDocumentForOCR(documentId);
@@ -62,7 +62,7 @@ class OCRService extends EventEmitter {
       });
 
       // 5. Send to OCR service
-      logger.log(`Sending document ${documentId} to OCR service`);
+      console.log(`Sending document ${documentId} to OCR service`);
       const ocrResponse = await axios.post(`${this.ocrBaseUrl}/ocr/document`, formData, {
         headers: {
           ...formData.getHeaders(),
@@ -73,6 +73,9 @@ class OCRService extends EventEmitter {
         maxBodyLength: Infinity
       });
 
+      // 6. Log raw OCR response for debugging
+      console.log('Raw OCR response:', JSON.stringify(ocrResponse.data, null, 2));
+      
       // 6. Extract text from OCR response
       const extractedText = this.extractTextFromOCR(ocrResponse.data);
       
@@ -96,7 +99,7 @@ class OCRService extends EventEmitter {
         ocrResponse.data
       );
 
-      logger.log(`Successfully processed document ${documentId}, extracted ${extractedText.length} characters`);
+      console.log(`Successfully processed document ${documentId}, extracted ${extractedText.length} characters`);
       
       return {
         success: true,
@@ -111,7 +114,7 @@ class OCRService extends EventEmitter {
       
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      logger.error(`Error processing document ${documentId}: ${error.message}`);
+      console.error(`Error processing document ${documentId}: ${error.message}`);
       
       // Get document title for error recording
       let documentTitle = `Document ${documentId}`;
@@ -164,7 +167,7 @@ class OCRService extends EventEmitter {
     
     const processedCount = documentIds.length - unprocessedIds.length;
     if (processedCount > 0) {
-      logger.log(`Filtered out ${processedCount} already processed documents`);
+      console.log(`Filtered out ${processedCount} already processed documents`);
     }
 
     return unprocessedIds;
@@ -189,7 +192,7 @@ class OCRService extends EventEmitter {
     const docsToProcess = skipProcessed ? this.filterUnprocessedDocuments(documentIds) : documentIds;
     
     if (docsToProcess.length === 0) {
-      logger.log('All documents have already been processed');
+      console.log('All documents have already been processed');
       this.emit('processingCompleted', {
         totalDocuments: originalCount,
         processedDocuments: 0,
@@ -204,7 +207,7 @@ class OCRService extends EventEmitter {
       return;
     }
 
-    logger.log(`Starting batch OCR processing for ${docsToProcess.length} documents (${originalCount - docsToProcess.length} already processed)`);
+    console.log(`Starting batch OCR processing for ${docsToProcess.length} documents (${originalCount - docsToProcess.length} already processed)`);
     
     // Generate session ID for tracking
     const sessionId = `ocr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -230,7 +233,7 @@ class OCRService extends EventEmitter {
     try {
       for (let i = 0; i < docsToProcess.length; i++) {
         if (this.shouldStop) {
-          logger.log('Processing stopped by user request');
+          console.log('Processing stopped by user request');
           break;
         }
 
@@ -298,12 +301,12 @@ class OCRService extends EventEmitter {
         this.shouldStop ? 'stopped' : 'completed'
       );
 
-      logger.log(`Batch processing completed: ${this.successfulDocuments}/${this.processedDocuments} documents successful`);
+      console.log(`Batch processing completed: ${this.successfulDocuments}/${this.processedDocuments} documents successful`);
       
       this.emit('processingCompleted', completedData);
       
     } catch (error) {
-      logger.error(`Batch processing failed: ${error.message}`);
+      console.error(`Batch processing failed: ${error.message}`);
       
       // Update session as failed
       ocrProcessingModel.updateProcessingSession(
@@ -333,7 +336,7 @@ class OCRService extends EventEmitter {
       return false;
     }
 
-    logger.log('Stopping OCR processing');
+    console.log('Stopping OCR processing');
     this.shouldStop = true;
     
     const stoppedData = {
@@ -389,7 +392,7 @@ class OCRService extends EventEmitter {
       });
       return response.status === 200;
     } catch (error) {
-      logger.error(`OCR service health check failed: ${error.message}`);
+      console.error(`OCR service health check failed: ${error.message}`);
       return false;
     }
   }
@@ -400,22 +403,37 @@ class OCRService extends EventEmitter {
    * @returns {string} Combined text from all recognized text lines
    */
   extractTextFromOCR(ocrResponse) {
-    if (!ocrResponse || !ocrResponse.rec_texts || !Array.isArray(ocrResponse.rec_texts)) {
-      throw new Error('Invalid OCR response format - missing rec_texts array');
+    if (!ocrResponse) {
+      throw new Error('Invalid OCR response - no response data');
     }
-
-    if (ocrResponse.rec_texts.length === 0) {
-      throw new Error('No text recognized in document');
+    
+    let extractedText = '';
+    
+    // Handle PDF response format
+    if (ocrResponse.full_document_text) {
+      extractedText = ocrResponse.full_document_text;
     }
-
-    // Combine all text lines into a single document
-    const combinedText = ocrResponse.rec_texts
-      .filter(text => text && typeof text === 'string') // Filter out null/undefined/non-string values
-      .map(text => text.trim()) // Trim whitespace
-      .filter(text => text.length > 0) // Remove empty lines
-      .join('\n'); // Join with newlines
-
-    return combinedText;
+    // Handle image response format
+    else if (ocrResponse.full_text) {
+      extractedText = ocrResponse.full_text;
+    }
+    // Handle legacy rec_texts format (fallback)
+    else if (ocrResponse.rec_texts && Array.isArray(ocrResponse.rec_texts)) {
+      extractedText = ocrResponse.rec_texts
+        .filter(text => text && typeof text === 'string')
+        .map(text => text.trim())
+        .filter(text => text.length > 0)
+        .join('\n');
+    }
+    else {
+      throw new Error('Invalid OCR response format - missing text content');
+    }
+    
+    if (!extractedText || extractedText.trim().length === 0) {
+      throw new Error('No text extracted from OCR response');
+    }
+    
+    return extractedText.trim();
   }
 
   /**
