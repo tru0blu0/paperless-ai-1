@@ -36,4 +36,7 @@ rag_config.conf
 indexed.conf
 main.py.bak
 __pycache__/
-
+surya_models.py
+ocr_report.md
+rag.ejs.old
+surya_env/

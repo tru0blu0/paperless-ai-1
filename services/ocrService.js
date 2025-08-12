@@ -15,8 +15,7 @@ const logger = new Logger({
 class OCRService extends EventEmitter {
   constructor() {
     super();
-    // this.ocrBaseUrl = 'http://ocr-container:8123';
-    this.ocrBaseUrl = 'http://localhost:8001';
+    this.ocrBaseUrl = 'http://ocr-container:8123';
     this.processingQueue = new Map();
     this.currentProcessing = null;
     this.isProcessing = false;
