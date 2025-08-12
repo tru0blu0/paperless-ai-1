@@ -1377,6 +1377,93 @@
       }
     },
     "/api/ocr/processed/{documentId}": {
+      "get": {
+        "summary": "Get processed document text",
+        "description": "Retrieves the processed text for a specific document including both structured text and markdown.\nReturns the original extracted text and formatted markdown text if available.\n",
+        "tags": [
+          "API",
+          "OCR"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The document ID to get processed text for",
+            "example": 123
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Processed document text retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "processing": {
+                      "type": "object",
+                      "properties": {
+                        "document_id": {
+                          "type": "integer"
+                        },
+                        "document_title": {
+                          "type": "string"
+                        },
+                        "extracted_text": {
+                          "type": "string"
+                        },
+                        "markdown_text": {
+                          "type": "string"
+                        },
+                        "processing_date": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Document not found or not processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error occurred while retrieving processed text",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "summary": "Reset processing status for a specific document",
         "description": "Removes the processing status for a specific document, allowing it to be processed again.\nThis is useful when you want to reprocess a document that was previously processed.\n",
@@ -4898,6 +4985,82 @@
                       "example": "Failed to fetch processing status"
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/documents/{documentId}/preview": {
+      "get": {
+        "summary": "Preview a document",
+        "description": "Proxy endpoint to preview a document from Paperless-NGX",
+        "tags": [
+          "Documents"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The document ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document preview",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/documents/{documentId}/download": {
+      "get": {
+        "summary": "Download a document",
+        "description": "Proxy endpoint to download a document from Paperless-NGX",
+        "tags": [
+          "Documents"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The document ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document download",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }

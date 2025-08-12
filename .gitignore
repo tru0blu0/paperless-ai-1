@@ -43,3 +43,4 @@ rag.ejs.old
 surya_env/
 ocr_server.py
 surya_models.py
+ocr_report.md

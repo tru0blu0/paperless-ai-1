@@ -15,7 +15,8 @@ const logger = new Logger({
 class OCRService extends EventEmitter {
   constructor() {
     super();
-    this.ocrBaseUrl = 'http://ocr-container:8123';
+    // this.ocrBaseUrl = 'http://ocr-container:8123';
+    this.ocrBaseUrl = 'http://localhost:8001';
     this.processingQueue = new Map();
     this.currentProcessing = null;
     this.isProcessing = false;
@@ -74,7 +75,7 @@ class OCRService extends EventEmitter {
         throw new Error('Processing stopped by user request');
       }
       
-      const ocrResponse = await axios.post(`${this.ocrBaseUrl}/ocr2/document`, formData, {
+      const ocrResponse = await axios.post(`${this.ocrBaseUrl}/ocr/extract`, formData, {
         headers: {
           ...formData.getHeaders(),
           'Accept': 'application/json'
@@ -469,19 +470,27 @@ class OCRService extends EventEmitter {
     let extractedText = '';
     let markdownText = '';
     
-    // Handle new structured response format
-    if (ocrResponse.structured_text) {
+    // Handle Python server response format (primary)
+    if (ocrResponse.full_text) {
+      extractedText = ocrResponse.full_text;
+      markdownText = ocrResponse.full_text; // Python server doesn't provide markdown
+    }
+    // Handle pages array if full_text is not available
+    else if (ocrResponse.pages && Array.isArray(ocrResponse.pages)) {
+      extractedText = ocrResponse.pages
+        .map(page => page.text)
+        .filter(text => text && text.trim())
+        .join('\n\n');
+      markdownText = extractedText;
+    }
+    // Handle new structured response format (legacy)
+    else if (ocrResponse.structured_text) {
       extractedText = ocrResponse.structured_text;
       markdownText = ocrResponse.markdown_text || ocrResponse.structured_text;
     }
     // Handle PDF response format (legacy)
     else if (ocrResponse.full_document_text) {
       extractedText = ocrResponse.full_document_text;
-      markdownText = extractedText;
-    }
-    // Handle image response format (legacy)
-    else if (ocrResponse.full_text) {
-      extractedText = ocrResponse.full_text;
       markdownText = extractedText;
     }
     // Handle legacy rec_texts format (fallback)
@@ -504,7 +513,7 @@ class OCRService extends EventEmitter {
     return {
       text: extractedText.trim(),
       markdown: markdownText.trim(),
-      hasMarkdown: !!ocrResponse.markdown_text
+      hasMarkdown: false // Python server doesn't provide markdown yet
     };
   }
 
@@ -596,6 +605,19 @@ class OCRService extends EventEmitter {
           extractedText = ocrResponse.processing_info.structured_text;
           markdownText = ocrResponse.processing_info.markdown_text;
         }
+        // Handle Python server response format
+        else if (ocrResponse.full_text) {
+          extractedText = ocrResponse.full_text;
+          markdownText = ocrResponse.full_text;
+        }
+        // Handle pages array format
+        else if (ocrResponse.pages && Array.isArray(ocrResponse.pages)) {
+          extractedText = ocrResponse.pages
+            .map(page => page.text)
+            .filter(text => text && text.trim())
+            .join('\n\n');
+          markdownText = extractedText;
+        }
         // Fallback to original OCR response format
         else if (ocrResponse.structured_text) {
           extractedText = ocrResponse.structured_text;
@@ -604,9 +626,6 @@ class OCRService extends EventEmitter {
         // Legacy format fallback
         else if (ocrResponse.full_document_text) {
           extractedText = ocrResponse.full_document_text;
-        }
-        else if (ocrResponse.full_text) {
-          extractedText = ocrResponse.full_text;
         }
         // If we still don't have text, show a placeholder that indicates text is available but not cached
         if (extractedText === 'No text available' && successfulProcessing.extracted_content_length > 0) {
