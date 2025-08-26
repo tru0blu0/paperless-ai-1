@@ -11,12 +11,26 @@ class RagService {
 
   /**
    * Check if the RAG service is available and ready
-   * @returns {Promise<{status: string, index_ready: boolean, data_loaded: boolean}>}
+   * @returns {Promise<{status: string, index_ready: boolean, data_loaded: boolean, ai_status: string, ai_model: string}>}
    */
   async checkStatus() {
     try {
       const response = await axios.get(`${this.baseUrl}/status`);
       //make test call to the LLM service to check if it is available
+          // get AI model information and used service from config/config.js
+      if(config.aiProvider === 'openai') {
+        ai_status = 'ok';
+        ai_model = config.openai.model || 'NOT DEFINED';
+      }else if(config.aiProvider === 'azure') {
+        ai_status = 'ok';
+        ai_model = config.azure.model || 'NOT DEFINED';
+      }else if(config.aiProvider === 'ollama') {
+        ai_status = 'ok';
+        ai_model = config.ollama.model || 'NOT DEFINED';
+      }else if(config.aiProvider === 'custom') {
+        ai_status = 'ok';
+        ai_model = config.custom.model || 'NOT DEFINED';
+      }
       return response.data;
     } catch (error) {
       console.error('Error checking RAG service status:', error.message);

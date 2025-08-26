@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const ragService = require('../services/ragService');
+const config = require('../config/config');
 
 /**
  * Search documents
@@ -91,11 +92,7 @@ router.get('/index/check', async (req, res) => {
  */
 router.get('/status', async (req, res) => {
   try {
-    const status = await ragService.checkStatus();
-    const aiStatus = await ragService.getAIStatus();
-    // Combine RAG and AI status
-    status.ai_status = aiStatus.status;
-    status.ai_model = aiStatus.model;
+    let status = await ragService.checkStatus();
     // console.log('RAG Status:', status);
     // console.log('AI Status:', aiStatus);
     res.json(status);
