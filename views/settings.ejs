@@ -852,7 +852,7 @@ function transform(data) {
                                     </div>
                                 </section>
                                 <!-- Custom Fields Section -->
-                                <section class="space-y-6">
+                                <section class="space-y-6" style="padding-top: 10px;">
                                     <h2 class="text-xl font-bold flex items-center gap-2 text-primary mb-4">
                                         <i class="fas fa-table text-blue-500"></i>
                                         Custom Fields
@@ -888,14 +888,14 @@ function transform(data) {
                                             <div class="col-span-5">
                                                 <input type="text" 
                                                     id="newFieldName" 
-                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" 
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
                                                     placeholder="Enter field name...">
                                             </div>
                                             
                                             <div class="col-span-3">
                                                 <select id="newFieldType" 
                                                         onchange="toggleCurrencySelect()"
-                                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                                     <option value="string">Text</option>
                                                     <option value="float">Number</option>
                                                     <option value="integer">Integer</option>
@@ -905,7 +905,7 @@ function transform(data) {
 
                                             <div class="col-span-2">
                                                 <select id="currencyCode" 
-                                                        class="hidden w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                                                        class="hidden w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                                     <option value="EUR">EUR</option>
                                                     <option value="USD">USD</option>
                                                     <option value="GBP">GBP</option>
@@ -927,10 +927,33 @@ function transform(data) {
                                         <input type="hidden" id="customFieldsJson" name="customFields" value='<%= config.CUSTOM_FIELDS || "{\"custom_fields\":[]}" %>'>
                                     </div>
                                 </section>
+                                <br><hr/><br>
+                                <!--- RAG Server -->
+                                <section class="space-y-6">
+                                    <h2 class="text-xl font-bold flex items-center gap-2 text-primary mb-4">
+                                        <i class="fas fa-robot" style="color: #3B82F6"></i>
+                                        RAG Server
+                                    </h2>
+                                    <div class="space-y-4">
+                                        <div class="space-y-2">
+                                            <label for="enableRAG" class="text-sm font-medium">Enable RAG Server</label>
+                                            <select id="enableRAG" 
+                                                    name="enableRAG" 
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                <option value="true" <%= config.enableRAG === 'yes' ? 'selected' : '' %>>Yes</option>
+                                                <option value="false" <%= config.enableRAG !== 'yes' ? 'selected' : '' %>>No</option>
+                                            </select>
+                                            <p class="text-xs text-gray-500">Enable or disable the RAG server for semantic search and document Q&A.</p>
+                                        </div>
+                                    </div>
+                                </section>
                                 <!-- System Prompt Section -->
                                 <div class="border-t pt-4 space-y-4">
                                     <div class="space-y-2">
-                                        <label for="systemPrompt" class="text-sm font-medium">Prompt Description</label>
+                                    <h2 class="text-xl font-bold flex items-center gap-2 text-primary mb-4">
+                                        <i class="fas fa-clipboard" style="color: #3B82F6"></i>
+                                        Prompt Description
+                                    </h2>
                                         <div class="space-y-2">
                                             <textarea id="systemPrompt" 
                                                       name="systemPrompt"
@@ -947,7 +970,6 @@ function transform(data) {
                                 </div>
                             </div>
                         </section>
-        
                         <!-- Submit Button -->
                         <div class="border-t pt-6">
                             <button type="submit" class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2">

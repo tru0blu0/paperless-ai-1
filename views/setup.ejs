@@ -713,6 +713,15 @@
                                     </section>
 
                                     <hr/>
+                                    <!-- Enable RAG Server -->
+                                    <div class="form-group">
+                                        <label for="enableRAG">Enable RAG Server?</label>
+                                        <select id="enableRAG" name="enableRAG" class="modern-input">
+                                            <option value="true" <%= config.enableRAG === 'yes' ? 'selected' : '' %>>Yes</option>
+                                            <option value="false" <%= config.enableRAG !== 'yes' ? 'selected' : '' %>>No</option>
+                                        </select>
+                                        <p class="mt-2 text-sm text-gray-500">Enable or disable the RAG server.</p>
+                                    </div>
                                     <!-- System Prompt -->
                                     <div class="form-group">
                                         <label for="systemPrompt">Prompt Description</label>

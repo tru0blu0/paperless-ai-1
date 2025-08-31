@@ -3370,6 +3370,27 @@
                     "type": "boolean",
                     "description": "Enable AI-based custom field extraction",
                     "example": false
+                  },
+                  "customFields": {
+                    "type": "array",
+                    "description": "List of custom fields for document processing",
+                    "items": {
+                      "type": "string"
+                    },
+                    "example": [
+                      "Invoice Number",
+                      "Customer Name"
+                    ]
+                  },
+                  "disableAutomaticProcessing": {
+                    "type": "boolean",
+                    "description": "Disable automatic processing of documents",
+                    "example": false
+                  },
+                  "enableRag": {
+                    "type": "boolean",
+                    "description": "Enable RAG (Retrieval-Augmented Generation) for document processing",
+                    "example": true
                   }
                 }
               }

@@ -66,6 +66,8 @@ module.exports = {
   restrictToExistingDocumentTypes: aiRestrictions.restrictToExistingDocumentTypes,
   // External API config
   externalApiConfig: externalApiConfig,
+  // RAG Enabled
+  enableRAG: process.env.RAG_ENABLED || 'no',
   paperless: {
     apiUrl: process.env.PAPERLESS_API_URL,
     apiToken: process.env.PAPERLESS_API_TOKEN

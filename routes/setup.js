@@ -1903,7 +1903,8 @@ router.get('/setup', async (req, res) => {
       AZURE_ENDPOINT: process.env.AZURE_ENDPOINT|| '',
       AZURE_API_KEY: process.env.AZURE_API_KEY || '',
       AZURE_DEPLOYMENT_NAME: process.env.AZURE_DEPLOYMENT_NAME || '',
-      AZURE_API_VERSION: process.env.AZURE_API_VERSION || ''
+      AZURE_API_VERSION: process.env.AZURE_API_VERSION || '',
+      enableRAG: process.env.RAG_ENABLED || 'no'
     };
 
     // Check both configuration and users
@@ -2713,7 +2714,8 @@ router.get('/settings', async (req, res) => {
     EXTERNAL_API_HEADERS: process.env.EXTERNAL_API_HEADERS || '{}',
     EXTERNAL_API_BODY: process.env.EXTERNAL_API_BODY || '{}',
     EXTERNAL_API_TIMEOUT: process.env.EXTERNAL_API_TIMEOUT || '5000',
-    EXTERNAL_API_TRANSFORM: process.env.EXTERNAL_API_TRANSFORM || ''
+    EXTERNAL_API_TRANSFORM: process.env.EXTERNAL_API_TRANSFORM || '',
+    enableRAG: process.env.RAG_ENABLED || 'no'
   };
   
   if (isConfigured) {
@@ -3537,6 +3539,20 @@ router.get('/health', async (req, res) => {
  *                 type: boolean
  *                 description: Enable AI-based custom field extraction
  *                 example: false
+ *               customFields:
+ *                 type: array
+ *                 description: List of custom fields for document processing
+ *                 items:
+ *                   type: string
+ *                 example: ["Invoice Number", "Customer Name"]
+ *               disableAutomaticProcessing:
+ *                 type: boolean
+ *                 description: Disable automatic processing of documents
+ *                 example: false
+ *               enableRag:
+ *                 type: boolean
+ *                 description: Enable RAG (Retrieval-Augmented Generation) for document processing
+ *                 example: true
  *     responses:
  *       200:
  *         description: Setup completed successfully
@@ -3618,7 +3634,8 @@ router.post('/setup', express.json(), async (req, res) => {
       azureEndpoint,
       azureApiKey,
       azureDeploymentName,
-      azureApiVersion
+      azureApiVersion,
+      enableRag
     } = req.body;
 
     // Log setup request with sensitive data redacted
@@ -3740,7 +3757,8 @@ router.post('/setup', express.json(), async (req, res) => {
       AZURE_ENDPOINT: azureEndpoint || '',
       AZURE_API_KEY: azureApiKey || '',
       AZURE_DEPLOYMENT_NAME: azureDeploymentName || '',
-      AZURE_API_VERSION: azureApiVersion || ''
+      AZURE_API_VERSION: azureApiVersion || '',
+      RAG_ENABLED: (enableRag === 'true' || enableRag === true) ? 'yes' : 'no'
     };
     
     // Validate AI provider config
@@ -4025,7 +4043,8 @@ router.post('/settings', express.json(), async (req, res) => {
       azureEndpoint,
       azureApiKey,
       azureDeploymentName,
-      azureApiVersion
+      azureApiVersion,
+      enableRAG
     } = req.body;
 
     //replace equal char in system prompt
@@ -4078,7 +4097,8 @@ router.post('/settings', express.json(), async (req, res) => {
       EXTERNAL_API_HEADERS: process.env.EXTERNAL_API_HEADERS || '{}',
       EXTERNAL_API_BODY: process.env.EXTERNAL_API_BODY || '{}',
       EXTERNAL_API_TIMEOUT: process.env.EXTERNAL_API_TIMEOUT || '5000',
-      EXTERNAL_API_TRANSFORM: process.env.EXTERNAL_API_TRANSFORM || ''
+      EXTERNAL_API_TRANSFORM: process.env.EXTERNAL_API_TRANSFORM || '',
+      enableRAG: process.env.RAG_ENABLED || 'no'
     };
 
     // Process custom fields
@@ -4201,6 +4221,7 @@ router.post('/settings', express.json(), async (req, res) => {
     if (customBaseUrl) updatedConfig.CUSTOM_BASE_URL = customBaseUrl;
     if (customModel) updatedConfig.CUSTOM_MODEL = customModel;
     if (disableAutomaticProcessing) updatedConfig.DISABLE_AUTOMATIC_PROCESSING = disableAutomaticProcessing;
+    if (enableRAG !== undefined) updatedConfig.RAG_ENABLED = (enableRAG === 'true' || enableRAG === true) ? 'yes' : 'no';
 
     // Update custom fields
     if (processedCustomFields.length > 0 || customFields) {
