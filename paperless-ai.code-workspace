@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+    ],
+    "settings": {
+        "terminal.integrated.defaultProfile.windows": "PowerShell",
+        "terminal.integrated.env.windows": {
+            "PYTHONIOENCODING": "utf-8"
+        },
+        "git.confirmSync": false
+    }
+}

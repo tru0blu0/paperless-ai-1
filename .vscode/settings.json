@@ -1,0 +1,62 @@
+{
+  // Python formatting and linting
+  "python.formatting.provider": "black",
+  "python.formatting.blackArgs": ["--line-length", "88"],
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "python.linting.enabled": true,
+  "python.linting.flake8Enabled": true,
+  "python.linting.flake8Args": [
+    "--max-line-length=88"
+  ],
+  "python.linting.pylintEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+"python.testing.autoTestDiscoverOnSaveEnabled": true,
+"jupyter.notebookFileRoot": "${workspaceFolder}",
+
+  // Docker support
+  "docker.showStartContainerOnAttach": false,
+  "docker.defaultRegistryPath": "",
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.ipynb_checkpoints": true,
+    "**/.mypy_cache": true,
+    "**/.env": true,
+    "**/env/": true,
+    "**/.venv/": true
+  },
+
+  // General
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.eol": "\r\n",
+  "editor.rulers": [88],
+  "editor.tabSize": 4,
+  "editor.detectIndentation": false,
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.env.windows": {
+    "PYTHONIOENCODING": "utf-8"
+  },
+
+  // Remote/Devcontainer
+  "remote.containers.showExplorer": true,
+
+  // Git
+  "git.autofetch": true,
+  "git.confirmSync": false,
+
+  // Misc
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/env/": true,
+    "**/.venv/": true,
+    "**/.env": true,
+    "**/__pycache__": true
+},
+"jupyter.interactiveWindow.creationMode": "perFile",
+"jupyter.interactiveWindow.textEditor.executeSelection": true
+}
