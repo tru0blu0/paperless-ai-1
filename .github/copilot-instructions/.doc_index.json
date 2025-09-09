@@ -1,0 +1,26 @@
+{
+  ".": {
+    "readme": "README.md",
+    "folder_checksum": "4870980bdc7a75d6346a9822ede251d1cc92fd56",
+    "generated_on": "2025-09-09T06:10:20.354564Z",
+    "generator_version": "0.1"
+  },
+  "prompts": {
+    "readme": "README.md",
+    "folder_checksum": "5395883cd16387402c7595545012b666df13950f",
+    "generated_on": "2025-09-09T06:10:20.416508Z",
+    "generator_version": "0.1"
+  },
+  "scripts": {
+    "readme": "README.md",
+    "folder_checksum": "fd71512f41f8b4b905c645e92d21601b885545b0",
+    "generated_on": "2025-09-09T06:10:20.472000Z",
+    "generator_version": "0.1"
+  },
+  "tests": {
+    "readme": "README.md",
+    "folder_checksum": "1406044773663f08b6d7e995a3d38ad4c0693149",
+    "generated_on": "2025-09-09T06:10:20.499361Z",
+    "generator_version": "0.1"
+  }
+}

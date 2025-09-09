@@ -67,11 +67,13 @@ If you have access to your MCP/Copilot server, you can typically fetch the activ
 
 - Viewing the MCP server’s `/metadata`, `/capabilities`, or `/manifest` endpoint (consult your MCP server docs).
 - Example (pseudo-API call):
+
   ```
   curl https://<your-mcp-server>/api/metadata
   # or
   curl https://<your-mcp-server>/api/capabilities
   ```
+
 - The returned JSON will often contain a list of currently enabled tools/capabilities.
 
 ### 2. From a Repo of Chatmode Definitions
