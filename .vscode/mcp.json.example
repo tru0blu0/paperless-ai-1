@@ -1,0 +1,153 @@
+{
+  "version": "1.0",
+  "default": "local-development",
+  "servers": {
+    "local-development": {
+      "name": "Local Development MCP Server",
+      "url": "http://localhost:8080/mcp",
+      "api_key": null,
+      "trust_self_signed": true,
+      "allowed_models": [
+        "local-llama-3.2",
+        "local-codellama",
+        "local-mistral-7b"
+      ],
+      "context_retrieval": {
+        "type": "filesystem",
+        "paths": [
+          "${workspaceFolder}",
+          "${workspaceFolder}/routes",
+          "${workspaceFolder}/services",
+          "${workspaceFolder}/config",
+          "${workspaceFolder}/public/js",
+          "${workspaceFolder}/views"
+        ],
+        "max_files": 50,
+        "include_patterns": [
+          "**/*.js",
+          "**/*.py",
+          "**/*.ejs",
+          "**/*.md",
+          "**/*.json",
+          "**/*.yml",
+          "**/*.yaml",
+          "README*",
+          "docs/**",
+          "Dockerfile*",
+          "docker-compose*"
+        ],
+        "exclude_patterns": [
+          "**/node_modules/**",
+          "**/.venv/**",
+          "**/__pycache__/**",
+          "**/dist/**",
+          "**/build/**",
+          "**/.git/**",
+          "**/data/.env"
+        ]
+      }
+    },
+    "cloud-ai-service": {
+      "name": "Cloud AI Service (Placeholder)",
+      "url": "https://api.your-ai-provider.example/v1/mcp",
+      "api_key": "${CLOUD_AI_API_KEY}",
+      "trust_self_signed": false,
+      "allowed_models": [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "claude-3.5-sonnet",
+        "gemini-pro"
+      ],
+      "context_retrieval": {
+        "type": "code-search-api",
+        "repo_allowlist": [
+          "tru0blu0/paperless-ai-1",
+          "paperless-ngx/paperless-ngx"
+        ],
+        "max_context_files": 30
+      }
+    },
+    "paperless-integration": {
+      "name": "Paperless-ngx Integration Context",
+      "url": "${PAPERLESS_API_URL}/mcp",
+      "api_key": "${PAPERLESS_API_TOKEN}",
+      "trust_self_signed": true,
+      "context_retrieval": {
+        "type": "rest-api",
+        "base_url": "${PAPERLESS_API_URL}/api",
+        "endpoints": [
+          "/documents/",
+          "/tags/",
+          "/correspondents/",
+          "/document_types/"
+        ]
+      }
+    }
+  },
+  "policies": {
+    "sensitive_paths": [
+      ".env",
+      "data/.env",
+      "secrets.yml",
+      "docker-compose.override.yml",
+      "**/config/database.js",
+      "**/keys/**",
+      "**/*.key",
+      "**/*.pem",
+      "**/credentials.json"
+    ],
+    "max_context_size_tokens": 32000,
+    "rate_limits": {
+      "requests_per_minute": 60,
+      "tokens_per_hour": 100000
+    },
+    "data_retention": {
+      "context_history_days": 7,
+      "sensitive_data_retention_days": 0
+    },
+    "allowed_file_types": [
+      ".js",
+      ".py",
+      ".ejs",
+      ".json",
+      ".yml",
+      ".yaml",
+      ".md",
+      ".txt",
+      ".dockerfile"
+    ]
+  },
+  "development_context": {
+    "project_type": "paperless-ai-integration",
+    "tech_stack": [
+      "Node.js",
+      "Express.js",
+      "Python",
+      "FastAPI",
+      "SQLite",
+      "Docker",
+      "EJS Templates"
+    ],
+    "ai_providers": [
+      "OpenAI",
+      "Ollama",
+      "Azure OpenAI",
+      "Custom API"
+    ],
+    "key_directories": {
+      "routes": "Express.js route handlers and API endpoints",
+      "services": "Business logic and external service integrations",
+      "config": "Configuration management and environment setup",
+      "public/js": "Client-side JavaScript for UI interactions",
+      "views": "EJS templates for server-side rendering",
+      "models": "Data models and database schemas"
+    },
+    "common_workflows": [
+      "document-analysis",
+      "ai-provider-configuration",
+      "paperless-ngx-integration",
+      "docker-deployment",
+      "api-testing"
+    ]
+  }
+}

@@ -41,3 +41,15 @@ rag.ejs.old
 surya_env/
 ocr_server.py
 surya_models.py
+
+# VS Code MCP configuration (contains API keys)
+.vscode/mcp.json
+mcp.json
+**/mcp.json
+
+# Additional sensitive files
+secrets.yml
+keys/
+*.key
+*.pem
+credentials.json
