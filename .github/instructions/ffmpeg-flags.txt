@@ -1,0 +1,3 @@
+# ffmpeg-flags.txt
+# Complete list of ffmpeg flags/commands (media-processing reference)
+{{FETCH: https://gist.githubusercontent.com/awesome/b592620313d4ff8712800b40d1e1511b/raw/ed113e1edd0b7ac6e75a6545fc7330e7682fe22a/gistfile1.txt}}
