@@ -1,0 +1,3 @@
+# raven-shell
+# Shell script for sending Sentry errors (DevOps/monitoring)
+{{FETCH: https://gist.githubusercontent.com/awesome/d6c24bcab1b47105ebd9c6ece40f1a25/raw/9df8f709a2e3fd2fe7b5208b927333c749b798ee/raven-shell}}
