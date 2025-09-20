@@ -1,0 +1,153 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Compose: Up (dev)",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.yml up --build",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Compose: Down",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.yml down --volumes",
+      "presentation": {
+        "reveal": "silent"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start: Node.js Dev Server",
+      "type": "shell",
+      "command": "npm run test",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start: Python RAG Service",
+      "type": "shell",
+      "command": "source venv/bin/activate && python main.py --host 127.0.0.1 --port 8000 --initialize",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run: Docker Shell (paperless-ai)",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.yml exec -it paperless-ai /bin/bash",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test: Python (pytest)",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.yml exec -T paperless-ai pytest",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test: Node.js",
+      "type": "shell",
+      "command": "npm test",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint: Python (flake8)",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.yml exec -T paperless-ai flake8 .",
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint: JavaScript (ESLint)",
+      "type": "shell",
+      "command": "npx eslint .",
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Format: Python (Black)",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.yml exec -T paperless-ai black .",
+      "presentation": {
+        "reveal": "silent"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Format: JavaScript (Prettier)",
+      "type": "shell",
+      "command": "npx prettier --write .",
+      "presentation": {
+        "reveal": "silent"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Install: Node Dependencies",
+      "type": "shell",
+      "command": "npm ci",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Install: Python Dependencies",
+      "type": "shell",
+      "command": "source venv/bin/activate && pip install -r requirements.txt",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Rebuild Container",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.yml build paperless-ai",
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: View Logs",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.yml logs -f paperless-ai",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
