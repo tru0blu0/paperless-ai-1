@@ -1,3 +1,4 @@
+MOVE TO: prompts/document-extraction-v1.md
 ---
 name: "document-extraction-v1"
 version: "1.0.0"
